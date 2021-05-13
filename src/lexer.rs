@@ -66,7 +66,7 @@ pub fn lex(program: String) -> Result<Vec<Token>, LexError> {
                 stream.next();
             }
             _ => {
-                token_list.push(lex_identifier(&mut stream)?);
+                token_list.push(lex_identifier(&mut stream, "")?);
             }
         }
     }
@@ -81,7 +81,7 @@ where I: Iterator<Item = char> {
         Some(c) if c.is_digit(10) => 
             lex_digit(stream, true),
         _ =>
-            Err(LexError::new("Unhandled: - has an identifier")),
+            lex_identifier(stream, "-"),
     }
 }
 
@@ -108,9 +108,9 @@ where I: Iterator<Item = char> {
     Ok(TokenType::Integer(result * if is_negative { -1 } else { 1 }).as_token())
 }
 
-fn lex_identifier<I>(stream: &mut Peekable<I>) -> LexResult
+fn lex_identifier<I>(stream: &mut Peekable<I>, initial_name: &str) -> LexResult
 where I: Iterator<Item = char> {
-    let mut identifier_name = String::new();
+    let mut identifier_name = String::from(initial_name);
     while let Some(peeked) = stream.peek() {
         match peeked {
             c if c.is_whitespace() =>
