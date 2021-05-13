@@ -7,6 +7,7 @@ use std::convert::TryInto;
 pub enum TokenType {
     OpenBrace,
     CloseBrace,
+    Dot,
     Identifier(String),
     Integer(i32),
 }
@@ -184,6 +185,17 @@ mod lexing_tests {
                 Ok(vec![TokenType::Identifier(String::from("thing")).to_token(),
                         TokenType::Identifier(String::from("-")).to_token(),
                         TokenType::Identifier(String::from("another")).to_token()]));
+    }
+
+    #[test]
+    fn lexes_dot() {
+        assert_eq!(lex(String::from(".")),
+                Ok(vec![TokenType::Dot.to_token()]));
+
+        assert_eq!(lex(String::from("1 . 2")),
+                Ok(vec![TokenType::Integer(1).to_token(),
+                        TokenType::Dot.to_token(),
+                        TokenType::Integer(2).to_token()]));
     }
 }
 
