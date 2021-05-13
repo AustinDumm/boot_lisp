@@ -1,4 +1,8 @@
 
+use std::iter::Peekable;
+
+use std::convert::TryInto;
+
 #[derive(Debug)]
 pub enum TokenType {
     OpenBrace,
@@ -37,9 +41,9 @@ impl LexError {
     }
 }
 
-pub type LexResult = Result<Vec<Token>, LexError>;
+pub type LexResult = Result<Token, LexError>;
 
-pub fn lex(program: String) -> LexResult {
+pub fn lex(program: String) -> Result<Vec<Token>, LexError> {
     let mut stream = program.chars().peekable();
     let mut token_list: Vec<Token> = vec![];
     while let Some(top_char) = stream.peek() {
@@ -52,11 +56,14 @@ pub fn lex(program: String) -> LexResult {
                 token_list.push(TokenType::CloseBrace.as_token());
                 stream.next();
             }
-            c if c.is_digit(10) => {
-                return Err(LexError::new("Digits not currently handled"));
-            }
             '-' => {
                 return Err(LexError::new("Negative sign not currently handled"));
+            }
+            c if c.is_digit(10) => {
+                token_list.push(lex_digit(&mut stream, false)?);
+            }
+            c if c.is_whitespace() => {
+                stream.next();
             }
             _ => {
                 return Err(LexError::new("Identifiers not currently handled"));
@@ -64,6 +71,34 @@ pub fn lex(program: String) -> LexResult {
         }
     }
 
-    Ok(vec![])
+    Ok(token_list)
+}
+
+fn lex_minus<I>(stream: &mut Peekable<I>) -> LexResult
+where I: Iterator<Item = char> {
+    Err(LexError::new("Negative sign not currently handled"))
+}
+
+fn lex_digit<I>(stream: &mut Peekable<I>, is_negative: bool) -> LexResult
+where I: Iterator<Item = char> {
+    let base: u32 = 10;
+    let mut result: i32 = 0;
+    while let Some(peeked) = stream.peek() {
+        match peeked {
+            c if c.is_digit(base) => {
+                let digit: i32 = c.to_digit(base).unwrap().try_into().unwrap();
+                result = result * (base as i32) + digit;
+                stream.next();
+            }
+            c if c.is_whitespace() => {
+                break;
+            }
+            c => {
+                return Err(LexError::new(&format!("Unexpected character found while lexing number: {}", c)));
+            }
+        }
+    }
+
+    return Ok(TokenType::Integer(result * if is_negative { -1 } else { 1 }).as_token());
 }
 
