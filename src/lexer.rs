@@ -3,7 +3,7 @@ use std::iter::Peekable;
 
 use std::convert::TryInto;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum TokenType {
     OpenBrace,
     CloseBrace,
@@ -25,12 +25,12 @@ impl TokenType {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Token {
     token_type: TokenType,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct LexError {
     message: String,
 }
@@ -123,5 +123,28 @@ where I: Iterator<Item = char> {
     }
 
     Ok(TokenType::Identifier(identifier_name).as_token())
+}
+
+
+#[cfg(test)]
+mod lexing_tests {
+    use super::*;
+
+    #[test]
+    fn lexes_parenthesis() {
+        assert_eq!(lex(String::from("( ( ) ( ) ) (()())")),
+                Ok(vec![TokenType::OpenBrace.as_token(),
+                        TokenType::OpenBrace.as_token(),
+                        TokenType::CloseBrace.as_token(),
+                        TokenType::OpenBrace.as_token(),
+                        TokenType::CloseBrace.as_token(),
+                        TokenType::CloseBrace.as_token(),
+                        TokenType::OpenBrace.as_token(),
+                        TokenType::OpenBrace.as_token(),
+                        TokenType::CloseBrace.as_token(),
+                        TokenType::OpenBrace.as_token(),
+                        TokenType::CloseBrace.as_token(),
+                        TokenType::CloseBrace.as_token()]))
+    }
 }
 
