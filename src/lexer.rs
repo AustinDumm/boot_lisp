@@ -146,5 +146,30 @@ mod lexing_tests {
                         TokenType::CloseBrace.as_token(),
                         TokenType::CloseBrace.as_token()]))
     }
+
+    #[test]
+    fn lexes_integers() {
+        assert_eq!(lex(String::from("5612")),
+                Ok(vec![TokenType::Integer(5612).as_token()]));
+
+        assert_eq!(lex(String::from("-29451")),
+                Ok(vec![TokenType::Integer(-29451).as_token()]));
+
+        assert_eq!(lex(String::from("492 178 42")),
+                Ok(vec![TokenType::Integer(492).as_token(),
+                        TokenType::Integer(178).as_token(),
+                        TokenType::Integer(42).as_token()]));
+
+        assert_eq!(lex(String::from("-2 -49 -382")),
+                Ok(vec![TokenType::Integer(-2).as_token(),
+                        TokenType::Integer(-49).as_token(),
+                        TokenType::Integer(-382).as_token()]));
+
+        assert_eq!(lex(String::from("45 -19 42 -40")),
+                Ok(vec![TokenType::Integer(45).as_token(),
+                        TokenType::Integer(-19).as_token(),
+                        TokenType::Integer(42).as_token(),
+                        TokenType::Integer(-40).as_token()]));
+    }
 }
 
