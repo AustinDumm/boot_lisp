@@ -8,7 +8,8 @@ use crate::lexer::{
 pub enum ExprData {
     Integer(i32),
     Identifier(String),
-    SExp(Box<Expr>, Box<Expr>),
+    List(Vec<Expr>),
+    DottedList(Vec<Expr>, Box<Expr>),
     Nil,
 }
 
@@ -19,10 +20,6 @@ impl ExprData {
             TokenType::Identifier(ident) => Ok(ExprData::Identifier(ident).to_expr()),
             other => Err(ParseError::new(&format!("Attempt to convert invalid token to expr: {:?}", other)))
         }
-    }
-
-    pub fn make_sexp(first: Expr, rest: Expr) -> ExprData {
-        ExprData::SExp(Box::new(first), Box::new(rest))
     }
 }
 
@@ -39,13 +36,13 @@ pub struct Expr {
 
 impl Expr {
     pub fn form_list(mut expr_vector: Vec<Expr>) -> Expr {
-        let mut result_expr = ExprData::Nil.to_expr();
-        let iter = expr_vector.drain(..).rev();
+        let mut list_exprs = vec![];
+        let iter = expr_vector.drain(..);
         for expr in iter {
-            result_expr = ExprData::make_sexp(expr, result_expr).to_expr();
+            list_exprs.push(expr);
         }
 
-        result_expr
+        ExprData::List(list_exprs).to_expr()
     }
 }
 
