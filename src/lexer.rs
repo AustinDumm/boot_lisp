@@ -66,7 +66,7 @@ pub fn lex(program: String) -> Result<Vec<Token>, LexError> {
                 stream.next();
             }
             _ => {
-                return Err(LexError::new("Identifiers not currently handled"));
+                token_list.push(lex_identifier(&mut stream)?);
             }
         }
     }
@@ -105,6 +105,23 @@ where I: Iterator<Item = char> {
         }
     }
 
-    return Ok(TokenType::Integer(result * if is_negative { -1 } else { 1 }).as_token());
+    Ok(TokenType::Integer(result * if is_negative { -1 } else { 1 }).as_token())
+}
+
+fn lex_identifier<I>(stream: &mut Peekable<I>) -> LexResult
+where I: Iterator<Item = char> {
+    let mut identifier_name = String::new();
+    while let Some(peeked) = stream.peek() {
+        match peeked {
+            c if c.is_whitespace() =>
+                break,
+            c => {
+                identifier_name.push(*c);
+                stream.next();
+            }
+        }
+    }
+
+    Ok(TokenType::Identifier(identifier_name).as_token())
 }
 
