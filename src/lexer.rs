@@ -57,7 +57,7 @@ pub fn lex(program: String) -> Result<Vec<Token>, LexError> {
                 stream.next();
             }
             '-' => {
-                return Err(LexError::new("Negative sign not currently handled"));
+                token_list.push(lex_minus(&mut stream)?);
             }
             c if c.is_digit(10) => {
                 token_list.push(lex_digit(&mut stream, false)?);
@@ -76,7 +76,13 @@ pub fn lex(program: String) -> Result<Vec<Token>, LexError> {
 
 fn lex_minus<I>(stream: &mut Peekable<I>) -> LexResult
 where I: Iterator<Item = char> {
-    Err(LexError::new("Negative sign not currently handled"))
+    stream.next();
+    match stream.peek() {
+        Some(c) if c.is_digit(10) => 
+            lex_digit(stream, true),
+        _ =>
+            Err(LexError::new("Unhandled: - has an identifier")),
+    }
 }
 
 fn lex_digit<I>(stream: &mut Peekable<I>, is_negative: bool) -> LexResult
