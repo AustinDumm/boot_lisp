@@ -12,7 +12,7 @@ pub enum TokenType {
 }
 
 impl TokenType {
-    pub fn as_token(self) -> Token {
+    pub fn to_token(self) -> Token {
         Token { token_type: self }
     }
 
@@ -27,7 +27,7 @@ impl TokenType {
 
 #[derive(Debug, PartialEq)]
 pub struct Token {
-    token_type: TokenType,
+    pub token_type: TokenType,
 }
 
 #[derive(Debug, PartialEq)]
@@ -49,11 +49,11 @@ pub fn lex(program: String) -> Result<Vec<Token>, LexError> {
     while let Some(top_char) = stream.peek() {
         match top_char {
             c if TokenType::is_open_brace(c) => {
-                token_list.push(TokenType::OpenBrace.as_token());
+                token_list.push(TokenType::OpenBrace.to_token());
                 stream.next();
             }
             c if TokenType::is_close_brace(c) => {
-                token_list.push(TokenType::CloseBrace.as_token());
+                token_list.push(TokenType::CloseBrace.to_token());
                 stream.next();
             }
             '-' => {
@@ -105,7 +105,7 @@ where I: Iterator<Item = char> {
         }
     }
 
-    Ok(TokenType::Integer(result * if is_negative { -1 } else { 1 }).as_token())
+    Ok(TokenType::Integer(result * if is_negative { -1 } else { 1 }).to_token())
 }
 
 fn lex_identifier<I>(stream: &mut Peekable<I>, initial_name: &str) -> LexResult
@@ -122,7 +122,7 @@ where I: Iterator<Item = char> {
         }
     }
 
-    Ok(TokenType::Identifier(identifier_name).as_token())
+    Ok(TokenType::Identifier(identifier_name).to_token())
 }
 
 
@@ -133,57 +133,57 @@ mod lexing_tests {
     #[test]
     fn lexes_parenthesis() {
         assert_eq!(lex(String::from("( ( ) ( ) ) (()())")),
-                Ok(vec![TokenType::OpenBrace.as_token(),
-                        TokenType::OpenBrace.as_token(),
-                        TokenType::CloseBrace.as_token(),
-                        TokenType::OpenBrace.as_token(),
-                        TokenType::CloseBrace.as_token(),
-                        TokenType::CloseBrace.as_token(),
-                        TokenType::OpenBrace.as_token(),
-                        TokenType::OpenBrace.as_token(),
-                        TokenType::CloseBrace.as_token(),
-                        TokenType::OpenBrace.as_token(),
-                        TokenType::CloseBrace.as_token(),
-                        TokenType::CloseBrace.as_token()]))
+                Ok(vec![TokenType::OpenBrace.to_token(),
+                        TokenType::OpenBrace.to_token(),
+                        TokenType::CloseBrace.to_token(),
+                        TokenType::OpenBrace.to_token(),
+                        TokenType::CloseBrace.to_token(),
+                        TokenType::CloseBrace.to_token(),
+                        TokenType::OpenBrace.to_token(),
+                        TokenType::OpenBrace.to_token(),
+                        TokenType::CloseBrace.to_token(),
+                        TokenType::OpenBrace.to_token(),
+                        TokenType::CloseBrace.to_token(),
+                        TokenType::CloseBrace.to_token()]))
     }
 
     #[test]
     fn lexes_integers() {
         assert_eq!(lex(String::from("5612")),
-                Ok(vec![TokenType::Integer(5612).as_token()]));
+                Ok(vec![TokenType::Integer(5612).to_token()]));
 
         assert_eq!(lex(String::from("-29451")),
-                Ok(vec![TokenType::Integer(-29451).as_token()]));
+                Ok(vec![TokenType::Integer(-29451).to_token()]));
 
         assert_eq!(lex(String::from("492 178 42")),
-                Ok(vec![TokenType::Integer(492).as_token(),
-                        TokenType::Integer(178).as_token(),
-                        TokenType::Integer(42).as_token()]));
+                Ok(vec![TokenType::Integer(492).to_token(),
+                        TokenType::Integer(178).to_token(),
+                        TokenType::Integer(42).to_token()]));
 
         assert_eq!(lex(String::from("-2 -49 -382")),
-                Ok(vec![TokenType::Integer(-2).as_token(),
-                        TokenType::Integer(-49).as_token(),
-                        TokenType::Integer(-382).as_token()]));
+                Ok(vec![TokenType::Integer(-2).to_token(),
+                        TokenType::Integer(-49).to_token(),
+                        TokenType::Integer(-382).to_token()]));
 
         assert_eq!(lex(String::from("45 -19 42 -40")),
-                Ok(vec![TokenType::Integer(45).as_token(),
-                        TokenType::Integer(-19).as_token(),
-                        TokenType::Integer(42).as_token(),
-                        TokenType::Integer(-40).as_token()]));
+                Ok(vec![TokenType::Integer(45).to_token(),
+                        TokenType::Integer(-19).to_token(),
+                        TokenType::Integer(42).to_token(),
+                        TokenType::Integer(-40).to_token()]));
     }
 
     #[test]
     fn lexes_identifiers() {
         assert_eq!(lex(String::from("ident")),
-                Ok(vec![TokenType::Identifier(String::from("ident")).as_token()]));
+                Ok(vec![TokenType::Identifier(String::from("ident")).to_token()]));
 
         assert_eq!(lex(String::from("-")),
-                Ok(vec![TokenType::Identifier(String::from("-")).as_token()]));
+                Ok(vec![TokenType::Identifier(String::from("-")).to_token()]));
 
         assert_eq!(lex(String::from("thing - another")),
-                Ok(vec![TokenType::Identifier(String::from("thing")).as_token(),
-                        TokenType::Identifier(String::from("-")).as_token(),
-                        TokenType::Identifier(String::from("another")).as_token()]));
+                Ok(vec![TokenType::Identifier(String::from("thing")).to_token(),
+                        TokenType::Identifier(String::from("-")).to_token(),
+                        TokenType::Identifier(String::from("another")).to_token()]));
     }
 }
 
