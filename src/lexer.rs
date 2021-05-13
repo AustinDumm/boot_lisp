@@ -171,5 +171,19 @@ mod lexing_tests {
                         TokenType::Integer(42).as_token(),
                         TokenType::Integer(-40).as_token()]));
     }
+
+    #[test]
+    fn lexes_identifiers() {
+        assert_eq!(lex(String::from("ident")),
+                Ok(vec![TokenType::Identifier(String::from("ident")).as_token()]));
+
+        assert_eq!(lex(String::from("-")),
+                Ok(vec![TokenType::Identifier(String::from("-")).as_token()]));
+
+        assert_eq!(lex(String::from("thing - another")),
+                Ok(vec![TokenType::Identifier(String::from("thing")).as_token(),
+                        TokenType::Identifier(String::from("-")).as_token(),
+                        TokenType::Identifier(String::from("another")).as_token()]));
+    }
 }
 
