@@ -1,14 +1,19 @@
 
+use std::iter::Peekable;
+
 use crate::lexer::{
     Token,
     TokenType,
 };
 
 #[derive(Debug, PartialEq)]
+pub struct Env {}
+
+#[derive(Debug, PartialEq)]
 pub enum ExprData {
     Integer(i32),
     Identifier(String),
-    Lambda(Vec<Expr>, Vec<Expr>, i32 /* env */),
+    Lambda(Vec<Expr>, Vec<Expr>, Env),
     List(Vec<Expr>),
     DottedList(Vec<Expr>, Box<Expr>),
     Nil,
@@ -61,7 +66,54 @@ impl ParseError {
 }
 
 pub fn parse(token_list: Vec<Token>) -> ParseResult {
-    Err(ParseError::new("Not yet implemented"))
+    let mut token_stream = token_list.iter().peekable();
+    parse_item(&mut token_stream)
+}
+
+fn parse_item<'a, I>(token_stream: &mut Peekable<I>) -> ParseResult
+where I: Iterator<Item = &'a Token> {
+    if let Some(token) = token_stream.next() {
+        match &token.token_type {
+            TokenType::OpenBrace => parse_list(token_stream),
+            TokenType::Integer(value) => Ok(ExprData::Integer(*value).to_expr()),
+            TokenType::Identifier(value) 
+                if *value == String::from("lambda") => parse_lambda(token_stream),
+            TokenType::Identifier(value) => Ok(ExprData::Identifier(value.clone()).to_expr()),
+            TokenType::CloseBrace => Err(ParseError::new("Close parenthesis found without matching open")),
+            TokenType::Dot => Err(ParseError::new("Dot found outside of list")),
+        }
+    } else {
+        Err(ParseError::new("Not yet implemented"))
+    }
+}
+
+fn parse_list<'a, I>(token_stream: &mut Peekable<I>) -> ParseResult
+where I: Iterator<Item = &'a Token> {
+    let mut list_items: Vec<Expr> = vec![];
+
+    while let Some(token) = token_stream.peek() {
+        match token.token_type {
+            TokenType::CloseBrace => {
+                token_stream.next();
+                return Ok(ExprData::List(list_items).to_expr())
+            },
+            TokenType::Dot => {
+                token_stream.next();
+                let final_element = parse_item(token_stream)?;
+                return Ok(ExprData::DottedList(list_items, Box::new(final_element)).to_expr())
+            },
+            _ => {
+                list_items.push(parse_item(token_stream)?)
+            }
+        }
+    }
+
+    Err(ParseError::new(&format!("Unexpected end to token stream found while parsing list: {:?}", list_items)))
+}
+
+fn parse_lambda<'a, I>(token_stream: &mut Peekable<I>) -> ParseResult
+where I: Iterator<Item = &'a Token> {
+    Err(ParseError::new("Lambda Parsing not yet handled"))
 }
 
 #[cfg(test)]
