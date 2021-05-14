@@ -60,6 +60,10 @@ pub fn lex(program: String) -> Result<Vec<Token>, LexError> {
             '-' => {
                 token_list.push(lex_minus(&mut stream)?);
             }
+            '.' => {
+                token_list.push(TokenType::Dot.to_token());
+                stream.next();
+            }
             c if c.is_digit(10) => {
                 token_list.push(lex_digit(&mut stream, false)?);
             }

@@ -8,6 +8,7 @@ use crate::lexer::{
 pub enum ExprData {
     Integer(i32),
     Identifier(String),
+    Lambda(Vec<Expr>, Vec<Expr>, i32 /* env */),
     List(Vec<Expr>),
     DottedList(Vec<Expr>, Box<Expr>),
     Nil,
