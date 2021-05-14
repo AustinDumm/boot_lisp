@@ -20,16 +20,6 @@ pub enum ExprData {
 }
 
 impl ExprData {
-    pub fn from_token(token: Token) -> ParseResult {
-        match token.token_type {
-            TokenType::Integer(int) => Ok(ExprData::Integer(int).to_expr()),
-            TokenType::Identifier(ident) => Ok(ExprData::Identifier(ident).to_expr()),
-            other => Err(ParseError::new(&format!("Attempt to convert invalid token to expr: {:?}", other)))
-        }
-    }
-}
-
-impl ExprData {
     pub fn to_expr(self) -> Expr {
         Expr { expr_type: self }
     }
@@ -76,8 +66,6 @@ where I: Iterator<Item = &'a Token> {
         match &token.token_type {
             TokenType::OpenBrace => parse_list(token_stream),
             TokenType::Integer(value) => Ok(ExprData::Integer(*value).to_expr()),
-            TokenType::Identifier(value) 
-                if *value == String::from("lambda") => parse_lambda(token_stream),
             TokenType::Identifier(value) => Ok(ExprData::Identifier(value.clone()).to_expr()),
             TokenType::CloseBrace => Err(ParseError::new("Close parenthesis found without matching open")),
             TokenType::Dot => Err(ParseError::new("Dot found outside of list")),
@@ -109,11 +97,6 @@ where I: Iterator<Item = &'a Token> {
     }
 
     Err(ParseError::new(&format!("Unexpected end to token stream found while parsing list: {:?}", list_items)))
-}
-
-fn parse_lambda<'a, I>(token_stream: &mut Peekable<I>) -> ParseResult
-where I: Iterator<Item = &'a Token> {
-    Err(ParseError::new("Lambda Parsing not yet handled"))
 }
 
 #[cfg(test)]
