@@ -6,10 +6,11 @@ use crate::lexer::{
     TokenType,
 };
 
-#[derive(Debug, PartialEq)]
-pub struct Env {}
+use crate::evaluator::{
+    Env,
+};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum ExprData {
     Integer(i32),
     Identifier(String),
@@ -19,15 +20,31 @@ pub enum ExprData {
     Nil,
 }
 
+impl PartialEq for ExprData {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (ExprData::Integer(this), ExprData::Integer(other)) => this == other,
+            (ExprData::Identifier(this), ExprData::Identifier(other)) => this == other,
+            (ExprData::Lambda(this_args, this_body, _), ExprData::Lambda(other_args, other_body, _)) 
+                => this_args == other_args && this_body == other_body,
+            (ExprData::List(this), ExprData::List(other)) => this == other,
+            (ExprData::DottedList(this_list, this_last), ExprData::DottedList(other_list, other_last))
+                => this_list == other_list && *this_last == *other_last,
+            (ExprData::Nil, ExprData::Nil) => true,
+            (_, _) => false,
+        }
+    }
+}
+
 impl ExprData {
     pub fn to_expr(self) -> Expr {
-        Expr { expr_type: self }
+        Expr { expr_data: self }
     }
 }
 
 #[derive(Debug, PartialEq)]
 pub struct Expr {
-    expr_type: ExprData
+    pub expr_data: ExprData
 }
 
 impl Expr {
