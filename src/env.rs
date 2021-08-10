@@ -23,9 +23,13 @@ impl Env {
         Arc::new(Env { dict: HashMap::new(), next_env: None })
     }
 
-    pub fn get<'a>(self_ptr: Arc<Self>, identifier_name: String) -> Option<Arc<RwLock<Expr>>> {
-        if self_ptr.dict.contains_key(&identifier_name) {
-            let expr = self_ptr.dict.get(&identifier_name).unwrap().clone();
+    pub fn containing(map: HashMap<String, Arc<RwLock<Expr>>>) -> Arc<Env> {
+        Arc::new(Env { dict: map, next_env: None })
+    }
+
+    pub fn get<'a>(self_ptr: Arc<Self>, identifier_name: &str) -> Option<Arc<RwLock<Expr>>> {
+        if self_ptr.dict.contains_key(identifier_name) {
+            let expr = self_ptr.dict.get(identifier_name).unwrap().clone();
             Some(expr)
         } else if let Some(next_env_arc) = &self_ptr.next_env {
             Env::get(next_env_arc.clone(), identifier_name)
@@ -47,8 +51,7 @@ impl Env {
         }
     }
 
-    // TODO: Setup binding_list and bindings to populate new hashmap
-    pub fn extend(self_ptr: Arc<Self>, binding_list: Expr, bindings: Expr) -> Option<Arc<Self>> {
+    pub fn extend(self_ptr: Arc<Self>, binding_list: Expr, bindings: Expr) -> Arc<Self> {
         fn collect_binding_pairs(mut binding_list: Expr, mut bindings: Expr) -> Vec<(String, Expr)> {
             if let ExprData::Identifier(name) = binding_list.expr_data {
                 vec![(name, bindings)]
@@ -69,11 +72,10 @@ impl Env {
                     },
                     (ExprData::DottedList(raw_bindings, final_binding), ExprData::List(raw_values)) => {
                         let mut pairs: Vec<(String, Expr)> = vec![];
-                        let bindings_iter = raw_bindings.into_iter();
-                        let values_iter = raw_values.into_iter();
-                        let mut zipped_iter = bindings_iter.zip(values_iter);
-                        while let Some(pair) = zipped_iter.next() {
-                            let (binding, value) = pair;
+                        let mut bindings_iter = raw_bindings.into_iter();
+                        let mut values_iter = raw_values.into_iter();
+                        while let Some(binding) = bindings_iter.next() {
+                            let value = values_iter.next().expect("Too few arguments used to bind to environment");
                             if let ExprData::Identifier(name) = binding.expr_data {
                                 pairs.push((name, value));
                             } else {
@@ -81,14 +83,8 @@ impl Env {
                             }
                         }
 
-                        let (bindings_iter, values_iter): (Vec<_>, Vec<_>) = zipped_iter.unzip();
-
-                        if bindings_iter.len() != 0 {
-                            panic!("Unmatched binding arity. Too few values to bind");
-                        }
-
                         if let ExprData::Identifier(name) = final_binding.expr_data {
-                            pairs.push((name, Expr::form_list(values_iter)))
+                            pairs.push((name, Expr::form_list(values_iter.collect())))
                         } else {
                             panic!("Final expr in dotted binding list is not an identifier")
                         }
@@ -103,6 +99,149 @@ impl Env {
         let binding_pairs = collect_binding_pairs(binding_list, bindings)
             .into_iter()
             .map(|pair| (pair.0, Arc::new(RwLock::new(pair.1))));
-        Some(Arc::new(Env { dict: binding_pairs.collect(), next_env: Some(self_ptr) }))
+        Arc::new(Env { dict: binding_pairs.collect(), next_env: Some(self_ptr) })
     }
 }
+
+#[cfg(test)]
+mod env_tests {
+    use super::*;
+
+    #[test]
+    fn does_empty_env_get_none() {
+        let env = Env::new();
+        
+        assert!(Env::get(env, "test").is_none());
+    }
+
+    #[test]
+    fn does_set_on_empty_env_fail() {
+        let env = Env::new();
+
+        assert!(!Env::set(env, String::from("test"), ExprData::Nil.to_expr()));
+    }
+
+    #[test]
+    fn does_env_lookup() {
+        let integer = Arc::new(RwLock::new(ExprData::Integer(16).to_expr()));
+        let identifier = Arc::new(RwLock::new(ExprData::Identifier(String::from("ident")).to_expr()));
+        let lambda_expr = Arc::new(RwLock::new(ExprData::Lambda(
+                                                vec![ExprData::Identifier(String::from("arg")).to_expr()],
+                                                vec![ExprData::Integer(5).to_expr()],
+                                                Env::new()).to_expr()));
+        let list = Arc::new(RwLock::new(ExprData::List(
+                    vec![ExprData::Integer(5).to_expr(),
+                         ExprData::Identifier(String::from("test")).to_expr()]).to_expr()));
+        let dotted = Arc::new(RwLock::new(ExprData::DottedList(
+                    vec![ExprData::Integer(6).to_expr(),
+                         ExprData::Identifier(String::from("rest")).to_expr()],
+                    Box::new(ExprData::Integer(10).to_expr())).to_expr()));
+        let nil = Arc::new(RwLock::new(ExprData::Nil.to_expr()));
+
+        let env =
+            Env::containing(
+                vec![(String::from("integer"), integer.clone()),
+                     (String::from("identifier"), identifier.clone()),
+                     (String::from("lambda"), lambda_expr.clone()),
+                     (String::from("list"), list.clone()),
+                     (String::from("dotted"), dotted.clone()),
+                     (String::from("nil"), nil.clone())]
+                        .into_iter()
+                        .collect());
+
+        assert!(Arc::ptr_eq(&Env::get(env.clone(), "integer").unwrap(), &integer));
+        assert!(Arc::ptr_eq(&Env::get(env.clone(), "identifier").unwrap(), &identifier));
+        assert!(Arc::ptr_eq(&Env::get(env.clone(), "lambda").unwrap(), &lambda_expr));
+        assert!(Arc::ptr_eq(&Env::get(env.clone(), "list").unwrap(), &list));
+        assert!(Arc::ptr_eq(&Env::get(env.clone(), "dotted").unwrap(), &dotted));
+        assert!(Arc::ptr_eq(&Env::get(env.clone(), "nil").unwrap(), &nil));
+    }
+
+    #[test]
+    fn does_bind_single_expr() {
+        let empty_env = Env::new();
+
+        let env = Env::extend(empty_env.clone(),
+                              ExprData::Identifier(String::from("test")).to_expr(),
+                              ExprData::List(vec![ExprData::Integer(5).to_expr()]).to_expr());
+
+        let env_value = Env::get(env.clone(), "test").unwrap();
+
+        assert_eq!(env_value.read().unwrap().expr_data,
+                   ExprData::List(vec![ExprData::Integer(5).to_expr()]));
+    }
+
+    #[test]
+    fn does_bind_from_list() {
+        let empty_env = Env::new();
+        let env = 
+            Env::extend(
+                empty_env.clone(),
+                Expr::form_list(vec![ExprData::Identifier(String::from("first")).to_expr(),
+                                     ExprData::Identifier(String::from("sec")).to_expr()]),
+                Expr::form_list(vec![ExprData::Integer(30).to_expr(),
+                                     ExprData::Integer(40).to_expr()]));
+
+        assert_eq!(Env::get(env.clone(), "first").unwrap().read().unwrap().expr_data,
+                   ExprData::Integer(30));
+
+        assert_eq!(Env::get(env.clone(), "sec").unwrap().read().unwrap().expr_data,
+                   ExprData::Integer(40));
+    }
+
+    #[test]
+    fn does_bind_from_dotted_list() {
+        let empty_env = Env::new();
+        let env =
+            Env::extend(
+                empty_env.clone(),
+                ExprData::DottedList(vec![ExprData::Identifier(String::from("first")).to_expr()],
+                                     Box::new(ExprData::Identifier(String::from("rest")).to_expr())).to_expr(),
+                Expr::form_list(vec![ExprData::Integer(100).to_expr(),
+                                     ExprData::Integer(101).to_expr(),
+                                     ExprData::Integer(102).to_expr()]));
+
+        assert_eq!(Env::get(env.clone(), "first").unwrap().read().unwrap().expr_data,
+                   ExprData::Integer(100));
+
+        assert_eq!(Env::get(env.clone(), "rest").unwrap().read().unwrap().expr_data,
+                   ExprData::List(vec![ExprData::Integer(101).to_expr(),
+                                       ExprData::Integer(102).to_expr()]));
+    }
+
+    #[test]
+    fn does_set_update_env() {
+        let env = Env::containing(vec![(String::from("key"), Arc::new(RwLock::new(ExprData::Integer(17).to_expr())))].into_iter().collect());
+
+        assert_eq!(Env::get(env.clone(), "key").unwrap().read().unwrap().expr_data,
+                   ExprData::Integer(17));
+
+        Env::set(env.clone(), String::from("key"), ExprData::Integer(33).to_expr());
+
+        assert_eq!(Env::get(env.clone(), "key").unwrap().read().unwrap().expr_data,
+                   ExprData::Integer(33));
+    }
+
+    #[test]
+    fn does_set_update_refs() {
+        let env = Env::containing(vec![(String::from("key"), Arc::new(RwLock::new(ExprData::Integer(69).to_expr())))].into_iter().collect());
+
+        let val_ref = Env::get(env.clone(), "key").unwrap();
+
+        assert_eq!(val_ref.read().unwrap().expr_data,
+                   ExprData::Integer(69));
+
+        Env::set(env.clone(), String::from("key"), ExprData::Integer(420).to_expr());
+
+        assert_eq!(val_ref.read().unwrap().expr_data,
+                   ExprData::Integer(420));
+    }
+    
+    #[test]
+    fn does_fail_nonexistent_set() {
+        let env = Env::containing(vec![(String::from("key"), Arc::new(RwLock::new(ExprData::Integer(2).to_expr())))].into_iter().collect());
+
+        assert!(!Env::set(env.clone(), String::from("nonexistent"), ExprData::Integer(5).to_expr()));
+    }
+}
+
