@@ -2,6 +2,7 @@
 use std::collections::HashMap;
 
 use std::sync::{
+    Mutex,
     RwLock,
     Arc,
     RwLockReadGuard,
@@ -15,42 +16,41 @@ use crate::parser::{
 
 #[derive(Debug)]
 pub struct Env {
-    dict: HashMap<String, Arc<Expr>>,
-    next_env: Option<Arc<RwLock<Env>>>,
+    dict: HashMap<String, Arc<RwLock<Expr>>>,
+    next_env: Option<Arc<Env>>,
 }
 
 impl Env {
-    pub fn new() -> Arc<RwLock<Env>> {
-        Arc::new(RwLock::new(Env { dict: HashMap::new(), next_env: None }))
+    pub fn new() -> Arc<Env> {
+        Arc::new(Env { dict: HashMap::new(), next_env: None })
     }
 
-    pub fn bind(self_guard: &mut RwLockWriteGuard<Self>, identifier_name: String, value: Expr) {
-        self_guard.dict.insert(identifier_name, Arc::new(value));
-    }
-
-    pub fn get(self_guard: &RwLockReadGuard<Self>, identifier_name: String) -> Option<Arc<Expr>> {
-        if self_guard.dict.contains_key(&identifier_name) {
-            self_guard.dict.get(&identifier_name).cloned()
-        } else if let Some(next_env) = &self_guard.next_env {
-            Env::get(&next_env.read().unwrap(), identifier_name)
+    pub fn get<'a>(self_ptr: Arc<Self>, identifier_name: String) -> Option<Arc<RwLock<Expr>>> {
+        if self_ptr.dict.contains_key(&identifier_name) {
+            let expr = self_ptr.dict.get(&identifier_name).unwrap().clone();
+            Some(expr)
+        } else if let Some(next_env_arc) = &self_ptr.next_env {
+            Env::get(next_env_arc.clone(), identifier_name)
         } else {
             None
         }
     }
 
-    pub fn set(self_guard: &mut RwLockWriteGuard<Self>, identifier_name: String, value: Expr) -> bool {
-        if self_guard.dict.contains_key(&identifier_name) {
-            self_guard.dict.insert(identifier_name, Arc::new(value));
+    pub fn set(self_ptr: Arc<Self>, identifier_name: String, value: Expr) -> bool {
+        if self_ptr.dict.contains_key(&identifier_name) {
+            let dict_item = self_ptr.dict.get(&identifier_name).unwrap().clone();
+            let mut expr_lock = dict_item.write().unwrap();
+            *expr_lock = value;
             true
-        } else if let Some(next_env) = self_guard.next_env.clone() {
-            Env::set(&mut next_env.write().unwrap(), identifier_name, value)
+        } else if let Some(next_env) = self_ptr.next_env.clone() {
+            Env::set(next_env, identifier_name, value)
         } else {
             false
         }
     }
 
-    pub fn extend(self_lock: Arc<RwLock<Env>>) -> Arc<RwLock<Env>> {
-        Arc::new(RwLock::new(Env { dict: HashMap::new(), next_env: Some(self_lock) }))
+    pub fn extend(self_ptr: Arc<Self>, binding_list: Expr, bindings: Expr) -> Option<Arc<Self>> {
+        Some(Arc::new(Env { dict: HashMap::new(), next_env: Some(self_ptr) }))
     }
 }
 
