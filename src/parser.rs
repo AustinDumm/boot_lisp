@@ -6,7 +6,7 @@ use crate::lexer::{
     TokenType,
 };
 
-use crate::evaluator::{
+use crate::env::{
     Env,
 };
 
