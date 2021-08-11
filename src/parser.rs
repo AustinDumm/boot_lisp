@@ -16,7 +16,7 @@ use crate::env::{
 pub enum ExprData {
     Integer(i32),
     Identifier(String),
-    Lambda(Vec<Expr>, Vec<Expr>, Arc<Env>),
+    Lambda(Vec<Expr>, Vec<Expr>, Env),
     List(Vec<Expr>),
     DottedList(Vec<Expr>, Box<Expr>),
     Nil,
@@ -27,8 +27,8 @@ impl PartialEq for ExprData {
         match (self, other) {
             (ExprData::Integer(this), ExprData::Integer(other)) => this == other,
             (ExprData::Identifier(this), ExprData::Identifier(other)) => this == other,
-            (ExprData::Lambda(this_args, this_body, this_env_ptr), ExprData::Lambda(other_args, other_body, other_env_ptr)) 
-                => this_args == other_args && this_body == other_body && Arc::ptr_eq(this_env_ptr, other_env_ptr),
+            (ExprData::Lambda(this_args, this_body, this_env), ExprData::Lambda(other_args, other_body, other_env)) 
+                => this_args == other_args && this_body == other_body && this_env == other_env,
             (ExprData::List(this), ExprData::List(other)) => this == other,
             (ExprData::DottedList(this_list, this_last), ExprData::DottedList(other_list, other_last))
                 => this_list == other_list && *this_last == *other_last,
