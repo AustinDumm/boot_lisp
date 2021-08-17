@@ -12,7 +12,7 @@ use crate::env::{
     Env,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ExprData {
     Integer(i32),
     Identifier(String),
@@ -44,7 +44,7 @@ impl ExprData {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Expr {
     pub expr_data: ExprData
 }

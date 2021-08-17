@@ -36,14 +36,22 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
         if let Some(ref active_frame) = eval_env.active_frame {
             match &active_frame.expr_queue {
                 ExprQueue::Expr(expr) => {
-                    match expr.expr_data {
+                    match &expr.expr_data {
                         ExprData::Integer(value) => {
-                            eval_env.accumulator = Some(ExprData::Integer(value).to_expr());
+                            eval_env.accumulator = Some(ExprData::Integer(*value).to_expr());
                             eval_env.pop_frame();
                         }
                         ExprData::Nil => {
                             eval_env.accumulator = Some(ExprData::Nil.to_expr());
                             eval_env.pop_frame();
+                        }
+                        ExprData::Identifier(name) => {
+                            if let Some(expr_lock) = active_frame.env.get(&name) {
+                                eval_env.accumulator = Some(expr_lock.read().unwrap().clone());
+                                eval_env.pop_frame()
+                            } else {
+                                return Err(EvalError::new(&format!("Failed to lookup value for identifier: {}", name)))
+                            }
                         }
                         _ => {
                             panic!("Unhandled Expr type for evaluation")
@@ -71,6 +79,11 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
 mod tests {
     use super::*;
 
+    use std::sync::{
+        Arc,
+        RwLock,
+    };
+
     #[test]
     fn evaluates_single_integer() {
         assert_eq!(
@@ -85,6 +98,17 @@ mod tests {
             eval(ExprData::Nil.to_expr(), Env::new()).expect("Failed to evaluate"),
             ExprData::Nil.to_expr()
         );
+    }
+
+    #[test]
+    fn evaluates_single_ident_lookup() {
+        assert_eq!(
+            eval(
+                ExprData::Identifier(String::from("test")).to_expr(),
+                Env::containing(vec![
+                    (String::from("test"), Arc::new(RwLock::new(ExprData::Integer(645).to_expr())))
+                ].into_iter().collect())).expect("Failed to evaluate"),
+            ExprData::Integer(645).to_expr());
     }
 }
 
