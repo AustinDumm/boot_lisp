@@ -41,6 +41,10 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
                             eval_env.accumulator = Some(ExprData::Integer(value).to_expr());
                             eval_env.pop_frame();
                         }
+                        ExprData::Nil => {
+                            eval_env.accumulator = Some(ExprData::Nil.to_expr());
+                            eval_env.pop_frame();
+                        }
                         _ => {
                             panic!("Unhandled Expr type for evaluation")
                         }
@@ -72,6 +76,14 @@ mod tests {
         assert_eq!(
             eval(ExprData::Integer(52).to_expr(), Env::new()).expect("Failed to evaluate"),
             ExprData::Integer(52).to_expr()
+        );
+    }
+
+    #[test]
+    fn evaluates_single_nil() {
+        assert_eq!(
+            eval(ExprData::Nil.to_expr(), Env::new()).expect("Failed to evaluate"),
+            ExprData::Nil.to_expr()
         );
     }
 }
