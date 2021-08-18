@@ -123,11 +123,11 @@ mod tests {
         let env = Env::new();
         assert_eq!(
             eval(
-                ExprData::Lambda(vec![ExprData::Identifier(String::from("test")).to_expr()],
+                ExprData::Lambda(Box::new(ExprData::List(vec![ExprData::Identifier(String::from("test")).to_expr()].into_iter()).to_expr()),
                                  vec![ExprData::Integer(521).to_expr()],
                                  env.clone()).to_expr(),
                 Env::new()).expect("Failed to evaluate"),
-                ExprData::Lambda(vec![ExprData::Identifier(String::from("test")).to_expr()],
+                ExprData::Lambda(Box::new(ExprData::List(vec![ExprData::Identifier(String::from("test")).to_expr()].into_iter()).to_expr()),
                                  vec![ExprData::Integer(521).to_expr()],
                                  env.clone()).to_expr()
         );
@@ -135,7 +135,7 @@ mod tests {
 
     #[test]
     fn fails_to_evaluate_dotted_list() {
-        assert_eq!(eval(ExprData::DottedList(vec![ExprData::Integer(2421).to_expr()],
+        assert_eq!(eval(ExprData::DottedList(vec![ExprData::Integer(2421).to_expr()].into_iter(),
                                              Box::new(ExprData::Identifier(String::from("testing")).to_expr())).to_expr(), Env::new()).unwrap_err(),
                    EvalError::new("Cannot evaluate dotted list"));
     }
@@ -145,10 +145,10 @@ mod tests {
         assert_eq!(
             eval(ExprData::List(
                     vec![
-                        ExprData::Lambda(vec![ExprData::Identifier(String::from("x")).to_expr()],
+                        ExprData::Lambda(Box::new(ExprData::List(vec![ExprData::Identifier(String::from("x")).to_expr()].into_iter()).to_expr()),
                                          vec![ExprData::Identifier(String::from("x")).to_expr()],
                                          Env::new()).to_expr(),
-                        ExprData::Integer(823).to_expr()]).to_expr(),
+                        ExprData::Integer(823).to_expr()].into_iter()).to_expr(),
                  Env::new()).expect("Failed to evaluate"),
             ExprData::Integer(823).to_expr()
         );

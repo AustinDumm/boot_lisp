@@ -1,7 +1,7 @@
 
 use std::iter::Peekable;
 
-use std::sync::Arc;
+use std::vec::IntoIter;
 
 use crate::lexer::{
     Token,
@@ -16,9 +16,9 @@ use crate::env::{
 pub enum ExprData {
     Integer(i32),
     Identifier(String),
-    Lambda(Vec<Expr>, Vec<Expr>, Env),
-    List(Vec<Expr>),
-    DottedList(Vec<Expr>, Box<Expr>),
+    Lambda(Box<Expr>, Vec<Expr>, Env),
+    List(IntoIter<Expr>),
+    DottedList(IntoIter<Expr>, Box<Expr>),
     Nil,
 }
 
@@ -28,10 +28,13 @@ impl PartialEq for ExprData {
             (ExprData::Integer(this), ExprData::Integer(other)) => this == other,
             (ExprData::Identifier(this), ExprData::Identifier(other)) => this == other,
             (ExprData::Lambda(this_args, this_body, this_env), ExprData::Lambda(other_args, other_body, other_env)) 
-                => this_args == other_args && this_body == other_body && this_env == other_env,
-            (ExprData::List(this), ExprData::List(other)) => this == other,
+                => this_args == other_args &&
+                   this_body == other_body &&
+                   this_env == other_env,
+            (ExprData::List(this), ExprData::List(other)) => this.clone().eq(other.clone()),
             (ExprData::DottedList(this_list, this_last), ExprData::DottedList(other_list, other_last))
-                => this_list == other_list && *this_last == *other_last,
+                => this_list.clone().eq(other_list.clone()) &&
+                   *this_last == *other_last,
             (ExprData::Nil, ExprData::Nil) => true,
             (_, _) => false,
         }
@@ -57,7 +60,7 @@ impl Expr {
             list_exprs.push(expr);
         }
 
-        ExprData::List(list_exprs).to_expr()
+        ExprData::List(list_exprs.into_iter()).to_expr()
     }
 }
 
@@ -102,12 +105,12 @@ where I: Iterator<Item = &'a Token> {
         match token.token_type {
             TokenType::CloseBrace => {
                 token_stream.next();
-                return Ok(ExprData::List(list_items).to_expr())
+                return Ok(ExprData::List(list_items.into_iter()).to_expr())
             },
             TokenType::Dot => {
                 token_stream.next();
                 let final_element = parse_item(token_stream)?;
-                return Ok(ExprData::DottedList(list_items, Box::new(final_element)).to_expr())
+                return Ok(ExprData::DottedList(list_items.into_iter(), Box::new(final_element)).to_expr())
             },
             _ => {
                 list_items.push(parse_item(token_stream)?)

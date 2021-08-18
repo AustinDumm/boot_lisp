@@ -72,7 +72,6 @@ impl Env {
                     (ExprData::List(raw_bindings), ExprData::List(raw_values)) => {
                         if raw_bindings.len() == raw_values.len() {
                             raw_bindings
-                                .iter()
                                 .map(|expr| match &expr.expr_data {
                                                 ExprData::Identifier(name) => name.clone(),
                                                 _ => panic!("Attempt to bind value to non-identifier")
@@ -138,15 +137,15 @@ mod env_tests {
         let integer = Arc::new(RwLock::new(ExprData::Integer(16).to_expr()));
         let identifier = Arc::new(RwLock::new(ExprData::Identifier(String::from("ident")).to_expr()));
         let lambda_expr = Arc::new(RwLock::new(ExprData::Lambda(
-                                                vec![ExprData::Identifier(String::from("arg")).to_expr()],
+                                                Box::new(ExprData::List(vec![ExprData::Identifier(String::from("arg")).to_expr()].into_iter()).to_expr()),
                                                 vec![ExprData::Integer(5).to_expr()],
                                                 Env::new()).to_expr()));
         let list = Arc::new(RwLock::new(ExprData::List(
                     vec![ExprData::Integer(5).to_expr(),
-                         ExprData::Identifier(String::from("test")).to_expr()]).to_expr()));
+                         ExprData::Identifier(String::from("test")).to_expr()].into_iter()).to_expr()));
         let dotted = Arc::new(RwLock::new(ExprData::DottedList(
                     vec![ExprData::Integer(6).to_expr(),
-                         ExprData::Identifier(String::from("rest")).to_expr()],
+                         ExprData::Identifier(String::from("rest")).to_expr()].into_iter(),
                     Box::new(ExprData::Integer(10).to_expr())).to_expr()));
         let nil = Arc::new(RwLock::new(ExprData::Nil.to_expr()));
 
@@ -175,12 +174,12 @@ mod env_tests {
 
         let env = empty_env.extend(
                               ExprData::Identifier(String::from("test")).to_expr(),
-                              ExprData::List(vec![ExprData::Integer(5).to_expr()]).to_expr());
+                              ExprData::List(vec![ExprData::Integer(5).to_expr()].into_iter()).to_expr());
 
         let env_value = env.get("test").unwrap();
 
         assert_eq!(env_value.read().unwrap().expr_data,
-                   ExprData::List(vec![ExprData::Integer(5).to_expr()]));
+                   ExprData::List(vec![ExprData::Integer(5).to_expr()].into_iter()));
     }
 
     #[test]
@@ -205,7 +204,7 @@ mod env_tests {
         let empty_env = Env::new();
         let env =
             empty_env.extend(
-                ExprData::DottedList(vec![ExprData::Identifier(String::from("first")).to_expr()],
+                ExprData::DottedList(vec![ExprData::Identifier(String::from("first")).to_expr()].into_iter(),
                                      Box::new(ExprData::Identifier(String::from("rest")).to_expr())).to_expr(),
                 Expr::form_list(vec![ExprData::Integer(100).to_expr(),
                                      ExprData::Integer(101).to_expr(),
@@ -216,7 +215,7 @@ mod env_tests {
 
         assert_eq!(env.get("rest").unwrap().read().unwrap().expr_data,
                    ExprData::List(vec![ExprData::Integer(101).to_expr(),
-                                       ExprData::Integer(102).to_expr()]));
+                                       ExprData::Integer(102).to_expr()].into_iter()));
     }
 
     #[test]
