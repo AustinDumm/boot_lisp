@@ -50,22 +50,3 @@ impl CallStack {
     }
 }
 
-pub struct EvaluationEnvironment {
-    pub accumulator: Option<Expr>,
-    pub active_frame: Option<StackFrame>,
-    pub stack: CallStack,
-}
-
-impl EvaluationEnvironment {
-    pub fn new(expr: Expr, env: Env) -> EvaluationEnvironment {
-        EvaluationEnvironment { 
-            accumulator: None,
-            active_frame: Some(StackFrame::new(ExprQueue::Expr(expr), env, vec![])),
-            stack: CallStack::new() }
-    }
-
-    pub fn pop_frame(&mut self) {
-        self.active_frame = self.stack.pop_frame()
-    }
-}
-

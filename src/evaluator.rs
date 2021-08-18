@@ -12,7 +12,6 @@ use crate::call_stack::{
     ExprQueue,
     StackFrame,
     CallStack,
-    EvaluationEnvironment,
 };
 
 #[derive(Debug)]
@@ -30,25 +29,25 @@ type EvalResult = Result<Expr, EvalError>;
 
 pub fn eval(expr: Expr, env: Env) -> EvalResult {
     
-    let mut eval_env = EvaluationEnvironment::new(expr, env);
+    let mut call_stack = CallStack::new();
+    let mut accumulator: Option<Expr> = None;
+    let mut active_frame: Option<StackFrame> = Some(StackFrame::new(ExprQueue::Expr(expr), env, vec![]));
 
     loop {
-        if let Some(ref active_frame) = eval_env.active_frame {
-            match &active_frame.expr_queue {
+        if let Some(_active_frame) = active_frame {
+            match _active_frame.expr_queue {
                 ExprQueue::Expr(expr) => {
                     match &expr.expr_data {
-                        ExprData::Integer(value) => {
-                            eval_env.accumulator = Some(ExprData::Integer(*value).to_expr());
-                            eval_env.pop_frame();
-                        }
-                        ExprData::Nil => {
-                            eval_env.accumulator = Some(ExprData::Nil.to_expr());
-                            eval_env.pop_frame();
+                        ExprData::Integer(_) |
+                        ExprData::Nil |
+                        ExprData::Lambda(_, _, _) => {
+                            accumulator = Some(expr);
+                            active_frame = call_stack.pop_frame();
                         }
                         ExprData::Identifier(name) => {
-                            if let Some(expr_lock) = active_frame.env.get(&name) {
-                                eval_env.accumulator = Some(expr_lock.read().unwrap().clone());
-                                eval_env.pop_frame()
+                            if let Some(expr_lock) = _active_frame.env.get(&name) {
+                                accumulator = Some(expr_lock.read().unwrap().clone());
+                                active_frame = call_stack.pop_frame()
                             } else {
                                 return Err(EvalError::new(&format!("Failed to lookup value for identifier: {}", name)))
                             }
@@ -63,7 +62,7 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
                 },
             }
         } else {
-            if let Some(result) = eval_env.accumulator {
+            if let Some(result) = accumulator {
                 return Ok(result)
             } else {
                 return Err(EvalError::new("Failed to find result in accumulator at end of evaluation"))
@@ -109,6 +108,21 @@ mod tests {
                     (String::from("test"), Arc::new(RwLock::new(ExprData::Integer(645).to_expr())))
                 ].into_iter().collect())).expect("Failed to evaluate"),
             ExprData::Integer(645).to_expr());
+    }
+
+    #[test]
+    fn evaluates_single_lambda() {
+        let env = Env::new();
+        assert_eq!(
+            eval(
+                ExprData::Lambda(vec![ExprData::Identifier(String::from("test")).to_expr()],
+                                 vec![ExprData::Integer(521).to_expr()],
+                                 env.clone()).to_expr(),
+                Env::new()).expect("Failed to evaluate"),
+                ExprData::Lambda(vec![ExprData::Identifier(String::from("test")).to_expr()],
+                                 vec![ExprData::Integer(521).to_expr()],
+                                 env.clone()).to_expr()
+        );
     }
 }
 
