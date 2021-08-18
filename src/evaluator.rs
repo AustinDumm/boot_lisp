@@ -37,7 +37,7 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
         if let Some(_active_frame) = active_frame {
             match _active_frame.expr_queue {
                 ExprQueue::Expr(expr) => {
-                    match &expr.expr_data {
+                    match expr.expr_data {
                         ExprData::Integer(_) |
                         ExprData::Nil |
                         ExprData::Lambda(_, _, _) => {
@@ -54,6 +54,11 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
                         }
                         ExprData::DottedList(_, _) => {
                             return Err(EvalError::new("Cannot evaluate dotted list"));
+                        }
+                        ExprData::List(list) => {
+                            active_frame = Some(StackFrame::new(ExprQueue::Queue(list.into_iter()),
+                                                                                 _active_frame.env.clone(),
+                                                                                 vec![]));
                         }
                         _ => {
                             panic!("Unhandled Expr type for evaluation")
@@ -133,6 +138,20 @@ mod tests {
         assert_eq!(eval(ExprData::DottedList(vec![ExprData::Integer(2421).to_expr()],
                                              Box::new(ExprData::Identifier(String::from("testing")).to_expr())).to_expr(), Env::new()).unwrap_err(),
                    EvalError::new("Cannot evaluate dotted list"));
+    }
+
+    #[test]
+    fn evaluates_identity_application() {
+        assert_eq!(
+            eval(ExprData::List(
+                    vec![
+                        ExprData::Lambda(vec![ExprData::Identifier(String::from("x")).to_expr()],
+                                         vec![ExprData::Identifier(String::from("x")).to_expr()],
+                                         Env::new()).to_expr(),
+                        ExprData::Integer(823).to_expr()]).to_expr(),
+                 Env::new()).expect("Failed to evaluate"),
+            ExprData::Integer(823).to_expr()
+        );
     }
 }
 
