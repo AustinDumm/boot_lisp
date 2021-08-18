@@ -12,20 +12,15 @@ use std::vec::{
 };
 
 pub struct StackFrame {
-    pub expr_queue: ExprQueue,
+    pub expr: Expr,
     pub env: Env,
     pub rib: Vec<Expr>,
 }
 
 impl StackFrame {
-    pub fn new(expr_queue: ExprQueue,env: Env, rib: Vec<Expr>) -> StackFrame {
-        StackFrame { env, rib, expr_queue }
+    pub fn new(expr: Expr,env: Env, rib: Vec<Expr>) -> StackFrame {
+        StackFrame { env, rib, expr }
     }
-}
-
-pub enum ExprQueue {
-    Expr(Expr),
-    Queue(IntoIter<Expr>),
 }
 
 pub struct CallStack {

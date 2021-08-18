@@ -9,7 +9,6 @@ use crate::env::{
 };
 
 use crate::call_stack::{
-    ExprQueue,
     StackFrame,
     CallStack,
 };
@@ -31,43 +30,34 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
     
     let mut call_stack = CallStack::new();
     let mut accumulator: Option<Expr> = None;
-    let mut active_frame: Option<StackFrame> = Some(StackFrame::new(ExprQueue::Expr(expr), env, vec![]));
+    let mut active_frame: Option<StackFrame> = Some(StackFrame::new(expr, env, vec![]));
 
     loop {
         if let Some(_active_frame) = active_frame {
-            match _active_frame.expr_queue {
-                ExprQueue::Expr(expr) => {
-                    match expr.expr_data {
-                        ExprData::Integer(_) |
-                        ExprData::Nil |
-                        ExprData::Lambda(_, _, _) => {
-                            accumulator = Some(expr);
-                            active_frame = call_stack.pop_frame();
-                        }
-                        ExprData::Identifier(name) => {
-                            if let Some(expr_lock) = _active_frame.env.get(&name) {
-                                accumulator = Some(expr_lock.read().unwrap().clone());
-                                active_frame = call_stack.pop_frame()
-                            } else {
-                                return Err(EvalError::new(&format!("Failed to lookup value for identifier: {}", name)))
-                            }
-                        }
-                        ExprData::DottedList(_, _) => {
-                            return Err(EvalError::new("Cannot evaluate dotted list"));
-                        }
-                        ExprData::List(list) => {
-                            active_frame = Some(StackFrame::new(ExprQueue::Queue(list.into_iter()),
-                                                                                 _active_frame.env.clone(),
-                                                                                 vec![]));
-                        }
-                        _ => {
-                            panic!("Unhandled Expr type for evaluation")
-                        }
+            match _active_frame.expr.expr_data {
+                ExprData::Integer(_) |
+                ExprData::Nil |
+                ExprData::Lambda(_, _, _) => {
+                    accumulator = Some(_active_frame.expr);
+                    active_frame = call_stack.pop_frame();
+                }
+                ExprData::Identifier(name) => {
+                    if let Some(expr_lock) = _active_frame.env.get(&name) {
+                        accumulator = Some(expr_lock.read().unwrap().clone());
+                        active_frame = call_stack.pop_frame()
+                    } else {
+                        return Err(EvalError::new(&format!("Failed to lookup value for identifier: {}", name)))
                     }
-                },
-                ExprQueue::Queue(queue) => {
-                    panic!("Unhandled expr queue for evaluation")
-                },
+                }
+                ExprData::DottedList(_, _) => {
+                    return Err(EvalError::new("Cannot evaluate dotted list"));
+                }
+                ExprData::List(list) => {
+                    panic!("Unhandled list evaluation");
+                }
+                _ => {
+                    panic!("Unhandled Expr type for evaluation")
+                }
             }
         } else {
             if let Some(result) = accumulator {
