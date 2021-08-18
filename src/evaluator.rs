@@ -14,7 +14,7 @@ use crate::call_stack::{
     CallStack,
 };
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct EvalError {
     pub message: String,
 }
@@ -51,6 +51,9 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
                             } else {
                                 return Err(EvalError::new(&format!("Failed to lookup value for identifier: {}", name)))
                             }
+                        }
+                        ExprData::DottedList(_, _) => {
+                            return Err(EvalError::new("Cannot evaluate dotted list"));
                         }
                         _ => {
                             panic!("Unhandled Expr type for evaluation")
@@ -123,6 +126,13 @@ mod tests {
                                  vec![ExprData::Integer(521).to_expr()],
                                  env.clone()).to_expr()
         );
+    }
+
+    #[test]
+    fn fails_to_evaluate_dotted_list() {
+        assert_eq!(eval(ExprData::DottedList(vec![ExprData::Integer(2421).to_expr()],
+                                             Box::new(ExprData::Identifier(String::from("testing")).to_expr())).to_expr(), Env::new()).unwrap_err(),
+                   EvalError::new("Cannot evaluate dotted list"));
     }
 }
 
