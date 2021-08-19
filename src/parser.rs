@@ -16,7 +16,7 @@ use crate::env::{
 pub enum ExprData {
     Integer(i32),
     Identifier(String),
-    Lambda(Box<Expr>, Vec<Expr>, Env),
+    Lambda(Box<Expr>, Box<Expr>, Env),
     List(IntoIter<Expr>),
     DottedList(IntoIter<Expr>, Box<Expr>),
     Nil,

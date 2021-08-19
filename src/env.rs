@@ -138,7 +138,7 @@ mod env_tests {
         let identifier = Arc::new(RwLock::new(ExprData::Identifier(String::from("ident")).to_expr()));
         let lambda_expr = Arc::new(RwLock::new(ExprData::Lambda(
                                                 Box::new(ExprData::List(vec![ExprData::Identifier(String::from("arg")).to_expr()].into_iter()).to_expr()),
-                                                vec![ExprData::Integer(5).to_expr()],
+                                                Box::new(ExprData::Integer(5).to_expr()),
                                                 Env::new()).to_expr()));
         let list = Arc::new(RwLock::new(ExprData::List(
                     vec![ExprData::Integer(5).to_expr(),
