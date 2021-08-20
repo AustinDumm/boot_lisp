@@ -7,10 +7,6 @@ use crate::env::{
     Env,
 };
 
-use std::vec::{
-    IntoIter,
-};
-
 pub struct StackFrame {
     pub expr: Expr,
     pub env: Env,
@@ -30,10 +26,6 @@ pub struct CallStack {
 impl CallStack {
     pub fn new() -> CallStack {
         CallStack { stack: vec![] }
-    }
-
-    pub fn is_empty(&self) -> bool {
-        return self.stack.len() == 0;
     }
 
     pub fn pop_frame(&mut self) -> Option<StackFrame> {

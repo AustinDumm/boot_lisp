@@ -41,32 +41,74 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
                     return Err(EvalError::new("Failed to find result in accumulator at end of evaluation"))
                 }
             },
-            Some(StackFrame { expr: Expr { expr_data: ExprData::Integer(_) }, env: _, rib: _ }) |
-                Some(StackFrame { expr: Expr { expr_data: ExprData::Nil }, env: _, rib: _ }) |
-                Some(StackFrame { expr: Expr { expr_data: ExprData::Lambda(_, _, _) }, env: _, rib: _ }) => {
-                    accumulator = Some(active_frame.unwrap().expr);
-                    active_frame = call_stack.pop_frame();
+            Some(
+                StackFrame {
+                    expr: Expr { expr_data: ExprData::Integer(_) }, 
+                    env: _, 
+                    rib: _ 
                 }
-            Some(StackFrame { expr: Expr { expr_data: ExprData::Identifier(name) }, env, rib: _ }) => {
+            ) |
+            Some(
+                StackFrame { 
+                    expr: Expr { expr_data: ExprData::Nil },
+                    env: _,
+                    rib: _
+                }
+            ) |
+            Some(
+                StackFrame {
+                    expr: Expr { expr_data: ExprData::Lambda(_, _, _) },
+                    env: _,
+                    rib: _
+                }
+            ) => {
+                accumulator = Some(active_frame.unwrap().expr);
+                active_frame = call_stack.pop_frame();
+            },
+            Some(
+                StackFrame {
+                    expr: Expr { expr_data: ExprData::Identifier(name) },
+                    env,
+                    rib: _
+                }
+            ) => {
                 if let Some(expr_lock) = env.get(&name) {
                     accumulator = Some(expr_lock.read().unwrap().clone());
                     active_frame = call_stack.pop_frame()
                 } else {
                     return Err(EvalError::new(&format!("Failed to lookup value for identifier: {}", name)))
                 }
-            }
-            Some(StackFrame { expr: Expr { expr_data: ExprData::DottedList(_, _) }, env: _, rib: _}) => {
+            },
+            Some(
+                StackFrame {
+                    expr: Expr { expr_data: ExprData::DottedList(_, _) },
+                    env: _,
+                    rib: _
+                }
+            ) => {
                 return Err(EvalError::new("Cannot evaluate dotted list"));
-            }
-            Some(StackFrame { expr: Expr { expr_data: ExprData::List(list) }, env, mut rib }) if accumulator.is_some() => {
+            },
+            Some(
+                StackFrame {
+                    expr: Expr { expr_data: ExprData::List(list) },
+                    env,
+                    mut rib 
+                }
+            ) if accumulator.is_some() => {
                 rib.push(accumulator.unwrap());
                 accumulator = None;
                 active_frame = Some(
                     StackFrame::new(ExprData::List(list).to_expr(),
                                     env,
                                     rib));
-            }
-            Some(StackFrame { expr: Expr { expr_data: ExprData::List(mut list) }, env, rib}) if accumulator.is_none() => {
+            },
+            Some(
+                StackFrame { 
+                    expr: Expr { expr_data: ExprData::List(mut list) },
+                    env,
+                    rib
+                }
+            ) if accumulator.is_none() => {
                 if let Some(next_expr) = list.next() {
                     call_stack.push_frame(StackFrame::new(ExprData::List(list).to_expr(),
                                                           env.clone(),
@@ -85,12 +127,10 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
                         return Err(EvalError::new("Application attempted with non-applicable first element in list"));
                     }
                 }
-            }
+            },
             _ => panic!("Unexpected match on evaluation loop")
         }
     }
-
-    Err(EvalError::new("Not yet implemented"))
 }
 
 

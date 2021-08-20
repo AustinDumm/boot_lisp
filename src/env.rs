@@ -64,7 +64,7 @@ impl Env {
     }
 
     pub fn extend(&self, binding_list: Expr, bindings: Expr) -> Env {
-        fn collect_binding_pairs(mut binding_list: Expr, mut bindings: Expr) -> Vec<(String, Expr)> {
+        fn collect_binding_pairs(binding_list: Expr, bindings: Expr) -> Vec<(String, Expr)> {
             if let ExprData::Identifier(name) = binding_list.expr_data {
                 vec![(name, bindings)]
             } else {
