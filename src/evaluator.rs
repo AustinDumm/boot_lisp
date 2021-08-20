@@ -33,64 +33,60 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
     let mut active_frame: Option<StackFrame> = Some(StackFrame::new(expr, env, vec![]));
 
     loop {
-        if let Some(_active_frame) = active_frame {
-            match _active_frame.expr.expr_data {
-                ExprData::Integer(_) |
-                ExprData::Nil |
-                ExprData::Lambda(_, _, _) => {
-                    accumulator = Some(_active_frame.expr);
+        match active_frame {
+            None => {
+                if let Some(result) = accumulator {
+                    return Ok(result)
+                } else {
+                    return Err(EvalError::new("Failed to find result in accumulator at end of evaluation"))
+                }
+            },
+            Some(StackFrame { expr: Expr { expr_data: ExprData::Integer(_) }, env: _, rib: _ }) |
+                Some(StackFrame { expr: Expr { expr_data: ExprData::Nil }, env: _, rib: _ }) |
+                Some(StackFrame { expr: Expr { expr_data: ExprData::Lambda(_, _, _) }, env: _, rib: _ }) => {
+                    accumulator = Some(active_frame.unwrap().expr);
                     active_frame = call_stack.pop_frame();
                 }
-                ExprData::Identifier(name) => {
-                    if let Some(expr_lock) = _active_frame.env.get(&name) {
-                        accumulator = Some(expr_lock.read().unwrap().clone());
-                        active_frame = call_stack.pop_frame()
-                    } else {
-                        return Err(EvalError::new(&format!("Failed to lookup value for identifier: {}", name)))
-                    }
-                }
-                ExprData::DottedList(_, _) => {
-                    return Err(EvalError::new("Cannot evaluate dotted list"));
-                }
-                ExprData::List(_) if accumulator.is_some() => {
-                    let mut rib = _active_frame.rib;
-                    rib.push(accumulator.unwrap());
-                    accumulator = None;
-                    active_frame = Some(
-                        StackFrame::new(_active_frame.expr,
-                                        _active_frame.env,
-                                        rib));
-                }
-                ExprData::List(mut list) if accumulator.is_none() => {
-                    if let Some(next_expr) = list.next() {
-                        call_stack.push_frame(StackFrame::new(ExprData::List(list).to_expr(),
-                                                              _active_frame.env.clone(),
-                                                              _active_frame.rib));
-                        active_frame = Some(StackFrame::new(next_expr,
-                                                            _active_frame.env.clone(),
-                                                            vec![]));
-                    } else {
-                        let mut rib_iter = _active_frame.rib.into_iter();
-                        if let Some(Expr { expr_data: ExprData::Lambda(args, body, env) }) =
-                            rib_iter.next() {
-                                let new_env = env.extend((*args).clone(), 
-                                                         ExprData::List(rib_iter).to_expr());
-                                active_frame = Some(StackFrame::new(*body, new_env, vec![]));
-                        } else {
-                            return Err(EvalError::new("Application attempted with non-applicable first element in list"));
-                        }
-                    }
-                }
-                _ => {
-                    panic!("Unhandled Expr type for evaluation")
+            Some(StackFrame { expr: Expr { expr_data: ExprData::Identifier(name) }, env, rib: _ }) => {
+                if let Some(expr_lock) = env.get(&name) {
+                    accumulator = Some(expr_lock.read().unwrap().clone());
+                    active_frame = call_stack.pop_frame()
+                } else {
+                    return Err(EvalError::new(&format!("Failed to lookup value for identifier: {}", name)))
                 }
             }
-        } else {
-            if let Some(result) = accumulator {
-                return Ok(result)
-            } else {
-                return Err(EvalError::new("Failed to find result in accumulator at end of evaluation"))
+            Some(StackFrame { expr: Expr { expr_data: ExprData::DottedList(_, _) }, env: _, rib: _}) => {
+                return Err(EvalError::new("Cannot evaluate dotted list"));
             }
+            Some(StackFrame { expr: Expr { expr_data: ExprData::List(list) }, env, mut rib }) if accumulator.is_some() => {
+                rib.push(accumulator.unwrap());
+                accumulator = None;
+                active_frame = Some(
+                    StackFrame::new(ExprData::List(list).to_expr(),
+                                    env,
+                                    rib));
+            }
+            Some(StackFrame { expr: Expr { expr_data: ExprData::List(mut list) }, env, rib}) if accumulator.is_none() => {
+                if let Some(next_expr) = list.next() {
+                    call_stack.push_frame(StackFrame::new(ExprData::List(list).to_expr(),
+                                                          env.clone(),
+                                                          rib));
+                    active_frame = Some(StackFrame::new(next_expr,
+                                                        env.clone(),
+                                                        vec![]));
+                } else {
+                    let mut rib_iter = rib.into_iter();
+                    if let Some(Expr { expr_data: ExprData::Lambda(args, body, closure_env) }) =
+                        rib_iter.next() {
+                            let new_env = closure_env.extend((*args).clone(), 
+                                                             ExprData::List(rib_iter).to_expr());
+                            active_frame = Some(StackFrame::new(*body, new_env, vec![]));
+                    } else {
+                        return Err(EvalError::new("Application attempted with non-applicable first element in list"));
+                    }
+                }
+            }
+            _ => panic!("Unexpected match on evaluation loop")
         }
     }
 
