@@ -1,4 +1,6 @@
 
+#![warn(missing_docs)]
+
 mod lexer;
 mod parser;
 mod evaluator;
