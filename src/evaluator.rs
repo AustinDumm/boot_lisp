@@ -13,6 +13,8 @@ use crate::call_stack::{
     CallStack,
 };
 
+/// Error type to be returned when evaluation fails. Contains a message describing the cause of the
+/// evaluation failure
 #[derive(Debug, PartialEq)]
 pub struct EvalError {
     pub message: String,
@@ -26,6 +28,10 @@ impl EvalError {
 
 type EvalResult = Result<Expr, EvalError>;
 
+/// Iteratively evaluates arbitrary boot lisp expressions
+///
+/// Evaluates iteratively rather than relying on host language's call stack in order to provide
+/// future support for first-class continuations
 pub fn eval(expr: Expr, env: Env) -> EvalResult {
     
     let mut call_stack = CallStack::new();
