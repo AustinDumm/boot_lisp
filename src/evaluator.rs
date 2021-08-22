@@ -138,11 +138,6 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
 mod tests {
     use super::*;
 
-    use std::sync::{
-        Arc,
-        RwLock,
-    };
-
     #[test]
     fn evaluates_single_integer() {
         assert_eq!(
@@ -163,9 +158,9 @@ mod tests {
     fn evaluates_single_ident_lookup() {
         assert_eq!(
             eval(
-                ExprData::Identifier(String::from("test")).to_expr(),
+                ExprData::ident_from("test").to_expr(),
                 Env::containing(vec![
-                    (String::from("test"), Arc::new(RwLock::new(ExprData::Integer(645).to_expr())))
+                    (String::from("test"), ExprData::Integer(645).to_expr())
                 ].into_iter().collect())).expect("Failed to evaluate"),
             ExprData::Integer(645).to_expr());
     }

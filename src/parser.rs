@@ -12,6 +12,35 @@ use crate::env::{
     Env,
 };
 
+/// Enum type holding all different options for expressions in boot lisp.
+/// - Integer
+///     - Type contains a 32 bit integer. Positive or negative whole number
+///     - Value belongs in set **Z**
+/// - Identifier
+///     - Type contains a string used to bind in the environment to other expression values
+/// - Lambda
+///     - Type representing an anonymous function from a list of expressions to a single expression
+///     - First stored value is a binding expression which can be:
+///         - Identifier - used to bind all passed parameters as a list to a single identifier
+///         - List - used to bind each passed parameter to a single identifier
+///         - Dotted List - used to bind each of the identifiers in the list to the matching
+///         parameter in order with all remaining parameters bound to the dotted value identifier
+///     - Second stored value is the body expression representing the evaluation from the bound
+///     parameters to the output expression of the lambda function
+///     - Third stored value is the active environment in the declaration of the lambda function.
+///     The body is evaluated with respect to this environment extended by the bound parameters to
+///     the argument identifiers. This environment is used to provide Lexical Scoping of the
+///     evaluation of lambda functions
+/// - List
+///     - A representation of an S-Expression list.
+///     - S-Expression is either:
+///         - Nil
+///         - A pair where (Expr, S-Expression)
+/// - Dotted List
+///     - A representation of an S-Expression list where the final right value is a
+///     non-S-Expression.
+/// - Nil
+///     - A representation of the end of a well-formed S-Expression list.
 #[derive(Debug, Clone)]
 pub enum ExprData {
     Integer(i32),
@@ -42,28 +71,55 @@ impl PartialEq for ExprData {
 }
 
 impl ExprData {
+    /// Convenience function to convert the raw data about an expression to one containing all
+    /// needed metadata for debugging and other purposes.
+    ///
+    /// ```
+    /// assert_eq!(Expr { expr_data: ExprData::Integer(183) },
+    ///            ExprData::Integer(183).to_expr());
+    /// ```
     pub fn to_expr(self) -> Expr {
         Expr { expr_data: self }
     }
+
+    /// Convenience function to create an identifier ExprData from a string literal
+    ///
+    /// ```
+    /// assert_eq!(ExprData::Identifier(String::from("identifier")),
+    ///            ExprData::ident_from("identifier"));
+    /// ```
+    pub fn ident_from(ident: &str) -> ExprData {
+        ExprData::Identifier(String::from(ident))
+    }
 }
 
+/// Data type storing both expression data and any important metadata for debugging purposes
 #[derive(Debug, PartialEq, Clone)]
 pub struct Expr {
     pub expr_data: ExprData
 }
 
 impl Expr {
-    pub fn form_list(mut expr_vector: Vec<Expr>) -> Expr {
+    /// Convenience function for generating an S-Expression list from a vector of ExprDatas
+    ///
+    /// ```
+    /// assert_eq!(ExprData::List(vec![ExprData::Integer(52).to_expr(),
+    ///                                ExprData::ident_from("ident").to_expr()].into_iter()).to_expr(),
+    ///            Expr::form_list(vec![ExprData::Integer(52),
+    ///                                 ExprData::ident_from("ident")]));
+    /// ```
+    pub fn form_list(mut expr_vector: Vec<ExprData>) -> Expr {
         let mut list_exprs = vec![];
         let iter = expr_vector.drain(..);
-        for expr in iter {
-            list_exprs.push(expr);
+        for expr_data in iter {
+            list_exprs.push(expr_data.to_expr());
         }
 
         ExprData::List(list_exprs.into_iter()).to_expr()
     }
 }
 
+/// Error type containing message describing the cause of a parsing error
 #[derive(Debug, PartialEq, Clone)]
 pub struct ParseError {
     message: String
@@ -77,11 +133,40 @@ impl ParseError {
     }
 }
 
+/// Convert a flat list of tokens into an Abstract Syntax Tree structure of expressions. 
+///
+/// boot lisp AST structure is made up of expressions representing primitive values or recursive
+/// pairs of other expressions both as unstructured pairs and more strictly-structured S-Expressions.
+///
+/// S-Expression = Nil |
+///                (Expression, S-Expression)
+///
+/// A brace-bound sequence of tokens represents an expression of type List, equivalent to a
+/// well-formed S-Expression sequence with the left-expression in each pair being the parsed token
+/// elements of the list. This indicates that parsing is an inherently recursive process.
+///
+/// ```
+/// assert_eq!(parse(vec![TokenType::OpenBrace.to_token(),
+///                       TokenType::ident_from("ident").to_token(),
+///                       TokenType::Integer(182).to_token(),
+///                       TokenType::OpenBrace.to_token(),
+///                       TokenType::ident_from("ifier").to_token(),
+///                       TokenType::Integer(592).to_token(),
+///                       TokenType::CloseBrace.to_token(),
+///                       TokenType::CloseBrace.to_token()]),
+///            Ok(Expr::form_list(vec![ExprData::ident_from("ident"),
+///                                    ExprData::Integer(182),
+///                                    Expr::form_list(vec![ExprData::ident_from("ifier"),
+///                                                         ExprData::Integer(592)]).expr_data])));
+/// ```
 pub fn parse(token_list: Vec<Token>) -> ParseResult {
     let mut token_stream = token_list.iter().peekable();
     parse_item(&mut token_stream)
 }
 
+/// Convert a peekable iterator of tokens into an Abstract Syntax Tree structure of expressions
+///
+/// Helper function for publicly accessible [parse] function
 fn parse_item<'a, I>(token_stream: &mut Peekable<I>) -> ParseResult
 where I: Iterator<Item = &'a Token> {
     if let Some(token) = token_stream.next() {
@@ -97,6 +182,8 @@ where I: Iterator<Item = &'a Token> {
     }
 }
 
+/// Parse a peekable iterator of tokens as a list. Intended to be called once the opening brace of
+/// a list has been popped off of the passed-in iterator
 fn parse_list<'a, I>(token_stream: &mut Peekable<I>) -> ParseResult
 where I: Iterator<Item = &'a Token> {
     let mut list_items: Vec<Expr> = vec![];
@@ -136,19 +223,19 @@ mod tests {
 
     #[test]
     fn parses_lists() {
-        assert_eq!(Ok(Expr::form_list(vec![ExprData::Integer(289).to_expr()])),
+        assert_eq!(Ok(Expr::form_list(vec![ExprData::Integer(289)])),
                    parse(vec![TokenType::OpenBrace.to_token(),
                               TokenType::Integer(289).to_token(),
                               TokenType::CloseBrace.to_token()]));
 
-        assert_eq!(Ok(Expr::form_list(vec![ExprData::Identifier(String::from("ident")).to_expr()])),
+        assert_eq!(Ok(Expr::form_list(vec![ExprData::Identifier(String::from("ident"))])),
                    parse(vec![TokenType::OpenBrace.to_token(),
                               TokenType::Identifier(String::from("ident")).to_token(),
                               TokenType::CloseBrace.to_token()]));
 
-        assert_eq!(Ok(Expr::form_list(vec![ExprData::Identifier(String::from("add")).to_expr(),
-                                           ExprData::Integer(5).to_expr(),
-                                           ExprData::Integer(10).to_expr()])),
+        assert_eq!(Ok(Expr::form_list(vec![ExprData::Identifier(String::from("add")),
+                                           ExprData::Integer(5),
+                                           ExprData::Integer(10)])),
                    parse(vec![TokenType::OpenBrace.to_token(),
                               TokenType::Identifier(String::from("add")).to_token(),
                               TokenType::Integer(5).to_token(),
