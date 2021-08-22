@@ -7,6 +7,15 @@ use crate::env::{
     Env,
 };
 
+/// Holds stack information for the evaluation of an expression
+///
+/// - expr
+///     - Stores the expression to be evaluate
+/// - env
+///     - Stores the enclosing environment for identifier lookup
+/// - rib
+///     - Stores intermediate evaluations of list elements in preparation for application and
+///     evaluation of functions
 pub struct StackFrame {
     pub expr: Expr,
     pub env: Env,
@@ -14,11 +23,12 @@ pub struct StackFrame {
 }
 
 impl StackFrame {
-    pub fn new(expr: Expr,env: Env, rib: Vec<Expr>) -> StackFrame {
-        StackFrame { env, rib, expr }
+    pub fn new(expr: Expr, env: Env, rib: Vec<Expr>) -> StackFrame {
+        StackFrame { expr, env, rib }
     }
 }
 
+/// Holds a stack data structure of StackFrames used to sequence evaluation of nested expressions
 pub struct CallStack {
     stack: Vec<StackFrame>
 }
