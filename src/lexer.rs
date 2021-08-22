@@ -19,6 +19,9 @@ use std::convert::TryInto;
 /// - Integer
 ///     - ```[-]?[0-9]```
 ///     - Whole number parsed to be positive or negative if preceeded by a "-" character
+/// - Quote
+///     - ```[']```
+///     - Marks an expression to be treated as a data literal rather than expression to evaluate
 ///
 /// Tokens are the smallest meaningful piece of a valid program in boot lisp. The TokenType enum
 /// holds the data for each of the types of tokens that can be in a program. These are generated
@@ -41,6 +44,7 @@ pub enum TokenType {
     Dot,
     Identifier(String),
     Integer(i32),
+    Quote,
 }
 
 impl TokenType {
@@ -160,6 +164,10 @@ pub fn lex(program: String) -> Result<Vec<Token>, LexError> {
             }
             '.' => {
                 token_list.push(TokenType::Dot.to_token());
+                stream.next();
+            }
+            '\'' => {
+                token_list.push(TokenType::Quote.to_token());
                 stream.next();
             }
             c if c.is_digit(10) => {
@@ -351,6 +359,12 @@ mod lexing_tests {
                 Ok(vec![TokenType::Integer(1).to_token(),
                         TokenType::Dot.to_token(),
                         TokenType::Integer(2).to_token()]));
+    }
+
+    #[test]
+    fn lexes_quote() {
+        assert_eq!(lex(String::from("'")),
+                   Ok(vec![TokenType::Quote.to_token()]));
     }
 }
 

@@ -41,6 +41,9 @@ use crate::env::{
 ///     non-S-Expression.
 /// - Nil
 ///     - A representation of the end of a well-formed S-Expression list.
+/// - Quote
+///     - A quoted expression is one that is treated as data. That is, not to be evaluated but
+///     treated as pure data by other evaluated code.
 #[derive(Debug, Clone)]
 pub enum ExprData {
     Integer(i32),
@@ -49,6 +52,7 @@ pub enum ExprData {
     List(IntoIter<Expr>),
     DottedList(IntoIter<Expr>, Box<Expr>),
     Nil,
+    Quote(Box<Expr>),
 }
 
 impl PartialEq for ExprData {
@@ -65,6 +69,7 @@ impl PartialEq for ExprData {
                 => this_list.clone().eq(other_list.clone()) &&
                    *this_last == *other_last,
             (ExprData::Nil, ExprData::Nil) => true,
+            (ExprData::Quote(first), ExprData::Quote(second)) => first == second,
             (_, _) => false,
         }
     }
@@ -176,6 +181,7 @@ where I: Iterator<Item = &'a Token> {
             TokenType::Identifier(value) => Ok(ExprData::Identifier(value.clone()).to_expr()),
             TokenType::CloseBrace => Err(ParseError::new("Close parenthesis found without matching open")),
             TokenType::Dot => Err(ParseError::new("Dot found outside of list")),
+            TokenType::Quote => Ok(ExprData::Quote(Box::new(parse_item(token_stream)?)).to_expr()),
         }
     } else {
         Err(ParseError::new("Not yet implemented"))
@@ -240,6 +246,16 @@ mod tests {
                               TokenType::Identifier(String::from("add")).to_token(),
                               TokenType::Integer(5).to_token(),
                               TokenType::Integer(10).to_token(),
+                              TokenType::CloseBrace.to_token()]));
+    }
+
+    #[test]
+    fn parses_quote_tokens() {
+        assert_eq!(Ok(ExprData::Quote(Box::new(Expr::form_list(vec![ExprData::Integer(1), ExprData::Integer(2)]))).to_expr()),
+                   parse(vec![TokenType::Quote.to_token(),
+                              TokenType::OpenBrace.to_token(),
+                              TokenType::Integer(1).to_token(),
+                              TokenType::Integer(2).to_token(),
                               TokenType::CloseBrace.to_token()]));
     }
 }

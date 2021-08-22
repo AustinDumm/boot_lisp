@@ -73,6 +73,16 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
             },
             Some(
                 StackFrame {
+                    expr: Expr { expr_data: ExprData::Quote(quoted_expr) },
+                    env: _,
+                    rib: _
+                }
+            ) => {
+                accumulator = Some(*quoted_expr);
+                active_frame = call_stack.pop_frame();
+            }
+            Some(
+                StackFrame {
                     expr: Expr { expr_data: ExprData::Identifier(name) },
                     env,
                     rib: _
@@ -205,6 +215,14 @@ mod tests {
                  Env::new()).expect("Failed to evaluate"),
             ExprData::Integer(823).to_expr()
         );
+    }
+
+    #[test]
+    fn evaluates_quoted_expr() {
+        assert_eq!(
+            eval(ExprData::Quote(Box::new(Expr::form_list(vec![ExprData::Integer(5), ExprData::Integer(8)]))).to_expr(),
+                 Env::new()).expect("Failed to evaluate"),
+            Expr::form_list(vec![ExprData::Integer(5), ExprData::Integer(8)]));
     }
 }
 
