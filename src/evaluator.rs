@@ -40,6 +40,7 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
 
     loop {
         match active_frame {
+            // If there is no active frame, the accumulator must contain the final expr
             None => {
                 if let Some(result) = accumulator {
                     return Ok(result)
@@ -47,6 +48,10 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
                     return Err(EvalError::new("Failed to find result in accumulator at end of evaluation"))
                 }
             },
+            
+            // If the active frame expr is a primitive, set the accumulator to the primitive and
+            // pop the current stack frame as it is no longer needed. This "passes" the current
+            // frame's value up to the previous frame for further use
             Some(
                 StackFrame {
                     expr: Expr { expr_data: ExprData::Integer(_) }, 
@@ -71,6 +76,11 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
                 accumulator = Some(active_frame.unwrap().expr);
                 active_frame = call_stack.pop_frame();
             },
+
+            // If the active frame expr is a quoted expression, set the accumulator to the
+            // contained expr and pop the current stack frame as it is no longer needed. This
+            // "passes" the contained expression up to the previous frame without evaluation to
+            // accomplish the intention of a quoted expr
             Some(
                 StackFrame {
                     expr: Expr { expr_data: ExprData::Quote(quoted_expr) },
@@ -80,7 +90,12 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
             ) => {
                 accumulator = Some(*quoted_expr);
                 active_frame = call_stack.pop_frame();
-            }
+            },
+
+            // If the active frame expr is an identifier, use the current environment to lookup the
+            // expr bound to that identifier. Set the accumulator to the bound expr and pop the
+            // current frame as it is no longer needed. This "passes" the bound expr up to the
+            // previous frame for further use
             Some(
                 StackFrame {
                     expr: Expr { expr_data: ExprData::Identifier(name) },
@@ -95,6 +110,9 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
                     return Err(EvalError::new(&format!("Failed to lookup value for identifier: {}", name)))
                 }
             },
+
+            // Dotted lists cannot be evaluated as they hold no meaning in evaluation. Return error
+            // with a description of this failure
             Some(
                 StackFrame {
                     expr: Expr { expr_data: ExprData::DottedList(_, _) },
@@ -104,6 +122,12 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
             ) => {
                 return Err(EvalError::new("Cannot evaluate dotted list"));
             },
+
+
+            // If the current frame expr is a list and the accumulator is Some, an intermediate
+            // evaluation has occurred and is waiting in the accumulator. Append the expr in the
+            // accumulator to this frame's rib and set the accumulator to None then loop to
+            // continue evaluation
             Some(
                 StackFrame {
                     expr: Expr { expr_data: ExprData::List(list) },
@@ -118,6 +142,21 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
                                     env,
                                     rib));
             },
+
+            // If the current frame expr is a list and the accumulator is None, we are ready to
+            // evaluate the next item in the list.
+            // If there is a "next" item:
+            //      Push this frame onto the stack
+            //      Create a new stack frame with the "next" item as its expr and set as
+            //          active_frame
+            // If there is no next item in the list:
+            //      Execute function application:
+            //          Retrieve first item as the applicable
+            //          Create a new env extending the applicable's environment with the bindings
+            //              from the applicable and the remaining rib exprs
+            //          Create a new frame containing the applicable's body and the new env
+            //          Set the active_frame to this new frame
+            //          Loop to continue evaluation
             Some(
                 StackFrame { 
                     expr: Expr { expr_data: ExprData::List(mut list) },
