@@ -54,7 +54,7 @@ pub enum ExprData {
     Integer(i32),
     Identifier(String),
     Lambda(Box<Expr>, Box<Expr>, Env),
-    Function(String, fn(StackFrame, &mut CallStack) -> StackFrame),
+    Function(String, fn(StackFrame, &mut CallStack) -> Option<StackFrame>),
     List(IntoIter<Expr>),
     DottedList(IntoIter<Expr>, Box<Expr>),
     Nil,

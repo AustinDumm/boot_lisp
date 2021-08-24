@@ -166,7 +166,12 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
                     //          Create a new frame containing the applicable's body and the new env
                     //          Set the active_frame to this new frame
                     //          Loop to continue evaluation
-                    if let Some(next_expr) = list.next() {
+                    if let Some(Expr { expr_data: ExprData::Function(_, fn_ptr) }) = rib.first() {
+                        active_frame = fn_ptr(StackFrame::new(ExprData::List(list).to_expr(),
+                                                              env,
+                                                              rib), 
+                                              &mut call_stack);
+                    } else if let Some(next_expr) = list.next() {
                         call_stack.push_frame(StackFrame::new(ExprData::List(list).to_expr(),
                                                               env.clone(),
                                                               rib));
