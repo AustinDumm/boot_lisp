@@ -16,6 +16,7 @@ use crate::env::{
 /// - rib
 ///     - Stores intermediate evaluations of list elements in preparation for application and
 ///     evaluation of functions
+#[derive(Debug)]
 pub struct StackFrame {
     pub expr: Expr,
     pub env: Env,
