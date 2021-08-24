@@ -72,6 +72,13 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
                     env: _,
                     rib: _
                 }
+            ) |
+            Some(
+                StackFrame {
+                    expr: Expr { expr_data: ExprData::Function(_, _) },
+                    env: _,
+                    rib: _
+                }
             ) => {
                 accumulator = Some(active_frame.unwrap().expr);
                 active_frame = call_stack.pop_frame();
@@ -123,67 +130,62 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
                 return Err(EvalError::new("Cannot evaluate dotted list"));
             },
 
-
-            // If the current frame expr is a list and the accumulator is Some, an intermediate
-            // evaluation has occurred and is waiting in the accumulator. Append the expr in the
-            // accumulator to this frame's rib and set the accumulator to None then loop to
-            // continue evaluation
+            // If the current frame expr is a list, need to execute the steps necessary for
+            // function argument evaluation and application
             Some(
                 StackFrame {
-                    expr: Expr { expr_data: ExprData::List(list) },
+                    expr: Expr { expr_data: ExprData::List(mut list) },
                     env,
                     mut rib 
                 }
-            ) if accumulator.is_some() => {
-                rib.push(accumulator.unwrap());
-                accumulator = None;
-                active_frame = Some(
-                    StackFrame::new(ExprData::List(list).to_expr(),
-                                    env,
-                                    rib));
-            },
+            ) => {
+                if let Some(acc_expr) = accumulator {
+                    // If the current frame expr is a list and the accumulator is Some, an intermediate
+                    // evaluation has occurred and is waiting in the accumulator. Append the expr in the
+                    // accumulator to this frame's rib and set the accumulator to None then loop to
+                    // continue evaluation
 
-            // If the current frame expr is a list and the accumulator is None, we are ready to
-            // evaluate the next item in the list.
-            // If there is a "next" item:
-            //      Push this frame onto the stack
-            //      Create a new stack frame with the "next" item as its expr and set as
-            //          active_frame
-            // If there is no next item in the list:
-            //      Execute function application:
-            //          Retrieve first item as the applicable
-            //          Create a new env extending the applicable's environment with the bindings
-            //              from the applicable and the remaining rib exprs
-            //          Create a new frame containing the applicable's body and the new env
-            //          Set the active_frame to this new frame
-            //          Loop to continue evaluation
-            Some(
-                StackFrame { 
-                    expr: Expr { expr_data: ExprData::List(mut list) },
-                    env,
-                    rib
-                }
-            ) if accumulator.is_none() => {
-                if let Some(next_expr) = list.next() {
-                    call_stack.push_frame(StackFrame::new(ExprData::List(list).to_expr(),
-                                                          env.clone(),
-                                                          rib));
-                    active_frame = Some(StackFrame::new(next_expr,
-                                                        env.clone(),
-                                                        vec![]));
+                    rib.push(acc_expr);
+                    accumulator = None;
+                    active_frame = Some(
+                        StackFrame::new(ExprData::List(list).to_expr(),
+                                        env,
+                                        rib));
                 } else {
-                    let mut rib_iter = rib.into_iter();
-                    if let Some(Expr { expr_data: ExprData::Lambda(args, body, closure_env) }) =
-                        rib_iter.next() {
-                            let new_env = closure_env.extend((*args).clone(), 
-                                                             ExprData::List(rib_iter).to_expr());
-                            active_frame = Some(StackFrame::new(*body, new_env, vec![]));
+                    // If the current frame expr is a list and the accumulator is None, we are ready to
+                    // evaluate the next item in the list.
+                    // If there is a "next" item:
+                    //      Push this frame onto the stack
+                    //      Create a new stack frame with the "next" item as its expr and set as
+                    //          active_frame
+                    // If there is no next item in the list:
+                    //      Execute function application:
+                    //          Retrieve first item as the applicable
+                    //          Create a new env extending the applicable's environment with the bindings
+                    //              from the applicable and the remaining rib exprs
+                    //          Create a new frame containing the applicable's body and the new env
+                    //          Set the active_frame to this new frame
+                    //          Loop to continue evaluation
+                    if let Some(next_expr) = list.next() {
+                        call_stack.push_frame(StackFrame::new(ExprData::List(list).to_expr(),
+                                                              env.clone(),
+                                                              rib));
+                        active_frame = Some(StackFrame::new(next_expr,
+                                                            env.clone(),
+                                                            vec![]));
                     } else {
-                        return Err(EvalError::new("Application attempted with non-applicable first element in list"));
+                        let mut rib_iter = rib.into_iter();
+                        if let Some(Expr { expr_data: ExprData::Lambda(args, body, closure_env) }) =
+                            rib_iter.next() {
+                                let new_env = closure_env.extend((*args).clone(), 
+                                                                 ExprData::List(rib_iter).to_expr());
+                                active_frame = Some(StackFrame::new(*body, new_env, vec![]));
+                        } else {
+                            return Err(EvalError::new("Application attempted with non-applicable first element in list"));
+                        }
                     }
                 }
             },
-            _ => panic!("Unexpected match on evaluation loop")
         }
     }
 }

@@ -8,6 +8,11 @@ use crate::lexer::{
     TokenType,
 };
 
+use crate::call_stack::{
+    StackFrame,
+    CallStack,
+};
+
 use crate::env::{
     Env,
 };
@@ -44,15 +49,32 @@ use crate::env::{
 /// - Quote
 ///     - A quoted expression is one that is treated as data. That is, not to be evaluated but
 ///     treated as pure data by other evaluated code.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum ExprData {
     Integer(i32),
     Identifier(String),
     Lambda(Box<Expr>, Box<Expr>, Env),
+    Function(String, fn(StackFrame, &mut CallStack) -> StackFrame),
     List(IntoIter<Expr>),
     DottedList(IntoIter<Expr>, Box<Expr>),
     Nil,
     Quote(Box<Expr>),
+}
+
+impl std::fmt::Debug for ExprData {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        use ExprData::*;
+        match self {
+            Integer(ref i) => i.fmt(f),
+            Identifier(ref s) => s.fmt(f),
+            Lambda(ref a, ref b, ref e) => { a.fmt(f)?; b.fmt(f)?; e.fmt(f) },
+            Function(name, _) => write!(f, "<Built-In Function:{}>", name),
+            List(ref iter) => iter.fmt(f),
+            DottedList(ref iter, ref e) => { iter.fmt(f)?; e.fmt(f) },
+            Nil => write!(f, "Nil"),
+            Quote(ref e) => e.fmt(f),
+        }
+    }
 }
 
 impl PartialEq for ExprData {
