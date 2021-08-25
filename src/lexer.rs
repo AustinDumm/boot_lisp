@@ -241,7 +241,9 @@ where I: Iterator<Item = char> {
                 result = result * (base as i32) + digit;
                 stream.next();
             }
-            c if c.is_whitespace() => {
+            c if c.is_whitespace() |
+                 TokenType::is_open_brace(c) |
+                 TokenType::is_close_brace(c) => {
                 break;
             }
             c => {
