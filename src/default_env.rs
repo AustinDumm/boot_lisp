@@ -15,6 +15,7 @@ use crate::env::{
     Env,
 };
 
+
 fn eval_arguments_and_apply<F>(frame: StackFrame, 
                                stack: &mut CallStack, 
                                application: F) -> StackFrame
@@ -40,25 +41,92 @@ fn eval_arguments_and_apply<F>(frame: StackFrame,
     }
 }
 
+//=============== Arithmetic Functions ===============
 fn add(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
     eval_arguments_and_apply(frame,
                              stack,
                              |iter| {
-                                ExprData::Integer(
-                                    iter.map(|expr| {
-                                        match expr {
-                                            Expr { expr_data: ExprData::Integer(value) } => value,
-                                            _ => panic!("Integer type must be used for addition"),
-                                        }
-                                    }).sum()
-                                ).to_expr()
+                                 ExprData::Integer(
+                                     iter.map(|expr| {
+                                         match expr {
+                                             Expr { expr_data: ExprData::Integer(value) } => value,
+                                             _ => panic!("Integer type must be used for addition"),
+                                         }
+                                     }).reduce(|acc, val| { acc + val }).unwrap()
+                                 ).to_expr()
                              })
 }
 
+fn sub(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
+    eval_arguments_and_apply(frame,
+                             stack,
+                             |iter| {
+                                 ExprData::Integer(
+                                     iter.map(|expr| -> i32 {
+                                         match expr {
+                                             Expr { expr_data: ExprData::Integer(value) } => value,
+                                             _ => panic!("Integer type must be used for subtraction"),
+                                         }
+                                     }).reduce(|acc, val| { acc - val }).unwrap()
+                                 ).to_expr()
+                             })
+}
+
+fn mul(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
+    eval_arguments_and_apply(frame,
+                             stack,
+                             |iter| {
+                                 ExprData::Integer(
+                                     iter.map(|expr| -> i32 {
+                                         match expr {
+                                             Expr { expr_data: ExprData::Integer(value) } => value,
+                                             _ => panic!("Integer type must be used for subtraction"),
+                                         }
+                                     }).reduce(|acc, val| { acc * val }).unwrap()
+                                 ).to_expr()
+                             })
+}
+
+fn div(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
+    eval_arguments_and_apply(frame,
+                             stack,
+                             |iter| {
+                                 ExprData::Integer(
+                                     iter.map(|expr| -> i32 {
+                                         match expr {
+                                             Expr { expr_data: ExprData::Integer(value) } => value,
+                                             _ => panic!("Integer type must be used for subtraction"),
+                                         }
+                                     }).reduce(|acc, val| { acc / val }).unwrap()
+                                 ).to_expr()
+                             })
+}
+
+fn modulo(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
+    eval_arguments_and_apply(frame,
+                             stack,
+                             |iter| {
+                                 ExprData::Integer(
+                                     iter.map(|expr| -> i32 {
+                                         match expr {
+                                             Expr { expr_data: ExprData::Integer(value) } => value,
+                                             _ => panic!("Integer type must be used for subtraction"),
+                                         }
+                                     }).reduce(|acc, val| { acc % val }).unwrap()
+                                 ).to_expr()
+                             })
+}
+
+
+//=============== Environment Creation ===============
 pub fn default_env() -> Env {
     Env::containing(
         vec![
-            (String::from("+"), ExprData::Function(String::from("+"), add).to_expr())
+            ("+".to_string(), ExprData::Function("+".to_string(), add).to_expr()),
+            ("-".to_string(), ExprData::Function("-".to_string(), sub).to_expr()),
+            ("*".to_string(), ExprData::Function("*".to_string(), mul).to_expr()),
+            ("/".to_string(), ExprData::Function("/".to_string(), div).to_expr()),
+            ("%".to_string(), ExprData::Function("%".to_string(), modulo).to_expr()),
         ].into_iter().collect()
     )
 }
