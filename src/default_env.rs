@@ -120,28 +120,96 @@ fn modulo(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
 
 //=============== Comparison Functions ===============
 
-fn lt(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
+fn eval_arguments_and_compare<F>(frame: StackFrame, stack: &mut CallStack, cmp: F) -> StackFrame
+where F: Fn(&Expr, &Expr) -> bool {
     eval_arguments_and_apply(frame,
                              stack,
                              |mut iter| {
                                  if let Some(mut current_expr) = iter.next() {
                                      while let Some(next_expr) = iter.next() {
-                                         match (&current_expr.expr_data, &next_expr.expr_data) {
-                                             (ExprData::Integer(current), ExprData::Integer(next)) => {
-                                                 if current < next {
-                                                     current_expr = next_expr
-                                                 } else {
-                                                     return ExprData::Bool(false).to_expr()
-                                                 }
-                                             },
-                                             (_, _) => {
-                                                 panic!("Integer type must be used for comparison");
-                                             }
+                                         if cmp(&current_expr, &next_expr) {
+                                             current_expr = next_expr
+                                         } else {
+                                             return ExprData::Bool(false).to_expr()
                                          }
                                      }
+                                     ExprData::Bool(true).to_expr()
+                                 } else {
+                                     panic!("Mismatched arity. Minimum of 1 argument must be given to comparison function")
                                  }
-                                 return ExprData::Bool(true).to_expr()
                              })
+}
+
+fn lt(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
+    eval_arguments_and_compare(frame,
+                               stack,
+                               |lhs, rhs| {
+                                   match (&lhs.expr_data, &rhs.expr_data) {
+                                       (ExprData::Integer(lhs), ExprData::Integer(rhs)) => lhs < rhs,
+                                       (_, _) => panic!("Integer type must be used for comparison")
+                                   }
+                               })
+}
+
+fn gt(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
+    eval_arguments_and_compare(frame,
+                               stack,
+                               |lhs, rhs| {
+                                   match (&lhs.expr_data, &rhs.expr_data) {
+                                       (ExprData::Integer(lhs), ExprData::Integer(rhs)) => lhs > rhs,
+                                       (_, _) => panic!("Integer type must be used for comparison")
+                                   }
+                               })
+}
+
+fn leq(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
+    eval_arguments_and_compare(frame,
+                               stack,
+                               |lhs, rhs| {
+                                   match (&lhs.expr_data, &rhs.expr_data) {
+                                       (ExprData::Integer(lhs), ExprData::Integer(rhs)) => lhs <= rhs,
+                                       (_, _) => panic!("Integer type must be used for comparison")
+                                   }
+                               })
+}
+
+fn geq(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
+    eval_arguments_and_compare(frame,
+                               stack,
+                               |lhs, rhs| {
+                                   match (&lhs.expr_data, &rhs.expr_data) {
+                                       (ExprData::Integer(lhs), ExprData::Integer(rhs)) => lhs >= rhs,
+                                       (_, _) => panic!("Integer type must be used for comparison")
+                                   }
+                               })
+}
+
+fn eq(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
+    eval_arguments_and_compare(frame,
+                               stack,
+                               |lhs, rhs| {
+                                   match (&lhs.expr_data, &rhs.expr_data) {
+                                       (ExprData::Integer(lhs), ExprData::Integer(rhs)) => lhs == rhs,
+                                       (_, _) => panic!("Integer type must be used for comparison")
+                                   }
+                               })
+}
+
+//=============== Lambda Creation ===============
+
+fn build_lambda(frame: StackFrame, _stack: &mut CallStack) -> StackFrame {
+    match frame.expr.expr_data {
+        ExprData::List(mut iter) => {
+            let args_list = iter.next().unwrap();
+            let body = iter.next().unwrap();
+            StackFrame::new(ExprData::Lambda(Box::new(args_list),
+                                             Box::new(body),
+                                             frame.env.clone()).to_expr(),
+                            frame.env,
+                            vec![])
+        },
+        _ => panic!("Lambda must take list of information"),
+    }
 }
 
 //=============== Environment Creation ===============
@@ -155,6 +223,12 @@ pub fn default_env() -> Env {
             ("%".to_string(), ExprData::Function("%".to_string(), modulo).to_expr()),
 
             ("<".to_string(), ExprData::Function("<".to_string(), lt).to_expr()),
+            (">".to_string(), ExprData::Function(">".to_string(), gt).to_expr()),
+            ("<=".to_string(), ExprData::Function("<=".to_string(), leq).to_expr()),
+            (">=".to_string(), ExprData::Function(">=".to_string(), geq).to_expr()),
+            ("=".to_string(), ExprData::Function("=".to_string(), eq).to_expr()),
+
+            ("lambda".to_string(), ExprData::Function("lambda".to_string(), build_lambda).to_expr()),
         ].into_iter().collect()
     )
 }
