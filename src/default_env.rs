@@ -118,6 +118,32 @@ fn modulo(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
 }
 
 
+//=============== Comparison Functions ===============
+
+fn lt(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
+    eval_arguments_and_apply(frame,
+                             stack,
+                             |mut iter| {
+                                 if let Some(mut current_expr) = iter.next() {
+                                     while let Some(next_expr) = iter.next() {
+                                         match (&current_expr.expr_data, &next_expr.expr_data) {
+                                             (ExprData::Integer(current), ExprData::Integer(next)) => {
+                                                 if current < next {
+                                                     current_expr = next_expr
+                                                 } else {
+                                                     return ExprData::Bool(false).to_expr()
+                                                 }
+                                             },
+                                             (_, _) => {
+                                                 panic!("Integer type must be used for comparison");
+                                             }
+                                         }
+                                     }
+                                 }
+                                 return ExprData::Bool(true).to_expr()
+                             })
+}
+
 //=============== Environment Creation ===============
 pub fn default_env() -> Env {
     Env::containing(
@@ -127,6 +153,8 @@ pub fn default_env() -> Env {
             ("*".to_string(), ExprData::Function("*".to_string(), mul).to_expr()),
             ("/".to_string(), ExprData::Function("/".to_string(), div).to_expr()),
             ("%".to_string(), ExprData::Function("%".to_string(), modulo).to_expr()),
+
+            ("<".to_string(), ExprData::Function("<".to_string(), lt).to_expr()),
         ].into_iter().collect()
     )
 }
