@@ -121,14 +121,24 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
 
             // Dotted lists cannot be evaluated as they hold no meaning in evaluation. Return error
             // with a description of this failure
+            // If the dotted list ends with a nil, it is effectively a well-formed S-Exp list,
+            // convert to such and continue
             Some(
                 StackFrame {
-                    expr: Expr { expr_data: ExprData::DottedList(_, _) },
-                    env: _,
-                    rib: _
+                    expr: Expr { expr_data: ExprData::DottedList(list, end) },
+                    env: env,
+                    rib: rib,
                 }
             ) => {
-                return Err(EvalError::new("Cannot evaluate dotted list"));
+                if end.expr_data == ExprData::Nil {
+                    active_frame = Some(StackFrame {
+                                            expr: ExprData::List(list).to_expr(),
+                                            env: env,
+                                            rib: rib
+                    });
+                } else {
+                    return Err(EvalError::new("Cannot evaluate dotted list"));
+                }
             },
 
             // If the current frame expr is a list, need to execute the steps necessary for

@@ -309,6 +309,42 @@ mod tests {
                               TokenType::Dot.to_token(),
                               TokenType::OpenBrace.to_token(),
                               TokenType::CloseBrace.to_token()]));
+
+        assert_eq!(Ok(ExprData::DottedList(vec![ExprData::Integer(1).to_expr(),
+                                                ExprData::Integer(2).to_expr(),
+                                                ExprData::Integer(3).to_expr()].into_iter(),
+                                           Box::new(ExprData::Integer(4).to_expr())).to_expr()),
+                   parse(vec![TokenType::OpenBrace.to_token(),
+                              TokenType::Integer(1).to_token(),
+                              TokenType::Dot.to_token(),
+                              TokenType::OpenBrace.to_token(),
+                              TokenType::Integer(2).to_token(),
+                              TokenType::Dot.to_token(),
+                              TokenType::OpenBrace.to_token(),
+                              TokenType::Integer(3).to_token(),
+                              TokenType::Dot.to_token(),
+                              TokenType::Integer(4).to_token(),
+                              TokenType::CloseBrace.to_token(),
+                              TokenType::CloseBrace.to_token(),
+                              TokenType::CloseBrace.to_token()]));
+
+        assert_eq!(Ok(ExprData::List(vec![ExprData::Integer(1).to_expr(),
+                                          ExprData::Integer(2).to_expr(),
+                                          ExprData::Integer(3).to_expr()].into_iter()).to_expr()),
+                   parse(vec![TokenType::OpenBrace.to_token(),
+                              TokenType::Integer(1).to_token(),
+                              TokenType::Dot.to_token(),
+                              TokenType::OpenBrace.to_token(),
+                              TokenType::Integer(2).to_token(),
+                              TokenType::Dot.to_token(),
+                              TokenType::OpenBrace.to_token(),
+                              TokenType::Integer(3).to_token(),
+                              TokenType::Dot.to_token(),
+                              TokenType::OpenBrace.to_token(),
+                              TokenType::CloseBrace.to_token(),
+                              TokenType::CloseBrace.to_token(),
+                              TokenType::CloseBrace.to_token(),
+                              TokenType::CloseBrace.to_token()]));
     }
 }
 
