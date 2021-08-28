@@ -43,6 +43,7 @@ pub enum TokenType {
     CloseBrace,
     Dot,
     Identifier(String),
+    Bool(bool),
     Integer(i32),
     Quote,
 }
@@ -367,6 +368,15 @@ mod lexing_tests {
     fn lexes_quote() {
         assert_eq!(lex(String::from("'")),
                    Ok(vec![TokenType::Quote.to_token()]));
+    }
+
+    #[test]
+    fn lexes_bool() {
+        assert_eq!(lex(String::from("#t")),
+                   Ok(vec![TokenType::Bool(true).to_token()]));
+
+        assert_eq!(lex(String::from("#f")),
+                   Ok(vec![TokenType::Bool(true).to_token()]));
     }
 }
 

@@ -55,6 +55,13 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
             // frame's value up to the previous frame for further use
             Some(
                 StackFrame {
+                    expr: Expr { expr_data: ExprData::Bool(_) },
+                    env: _,
+                    rib: _,
+                }
+            ) |
+            Some(
+                StackFrame {
                     expr: Expr { expr_data: ExprData::Integer(_) }, 
                     env: _, 
                     rib: _ 
@@ -126,8 +133,8 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
             Some(
                 StackFrame {
                     expr: Expr { expr_data: ExprData::DottedList(list, end) },
-                    env: env,
-                    rib: rib,
+                    env,
+                    rib,
                 }
             ) => {
                 if end.expr_data == ExprData::Nil {

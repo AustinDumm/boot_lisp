@@ -51,6 +51,7 @@ use crate::env::{
 ///     treated as pure data by other evaluated code.
 #[derive(Clone)]
 pub enum ExprData {
+    Bool(bool),
     Integer(i32),
     Identifier(String),
     Lambda(Box<Expr>, Box<Expr>, Env),
@@ -65,6 +66,7 @@ impl std::fmt::Debug for ExprData {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         use ExprData::*;
         match self {
+            Bool(ref b) => b.fmt(f),
             Integer(ref i) => i.fmt(f),
             Identifier(ref s) => s.fmt(f),
             Lambda(ref a, ref b, ref e) => { a.fmt(f)?; b.fmt(f)?; e.fmt(f) },
@@ -80,6 +82,7 @@ impl std::fmt::Debug for ExprData {
 impl PartialEq for ExprData {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
+            (ExprData::Bool(this), ExprData::Bool(other)) => this == other,
             (ExprData::Integer(this), ExprData::Integer(other)) => this == other,
             (ExprData::Identifier(this), ExprData::Identifier(other)) => this == other,
             (ExprData::Lambda(this_args, this_body, this_env), ExprData::Lambda(other_args, other_body, other_env)) 
@@ -199,6 +202,7 @@ where I: Iterator<Item = &'a Token> {
     if let Some(token) = token_stream.next() {
         match &token.token_type {
             TokenType::OpenBrace => parse_list(token_stream),
+            TokenType::Bool(value) => Ok(ExprData::Bool(*value).to_expr()),
             TokenType::Integer(value) => Ok(ExprData::Integer(*value).to_expr()),
             TokenType::Identifier(value) => Ok(ExprData::Identifier(value.clone()).to_expr()),
             TokenType::CloseBrace => Err(ParseError::new("Close parenthesis found without matching open")),
@@ -232,7 +236,7 @@ where I: Iterator<Item = &'a Token> {
                 match final_element.expr_data {
                     ExprData::Nil =>
                         return Ok(ExprData::List(list_items.into_iter()).to_expr()),
-                    ExprData::List(mut iter) => {
+                    ExprData::List(iter) => {
                         let mut collected: Vec<Expr> = iter.collect();
                         list_items.append(&mut collected);
                         return Ok(ExprData::List(list_items.into_iter()).to_expr())
@@ -266,6 +270,9 @@ mod tests {
 
         assert_eq!(Ok(ExprData::Identifier(String::from("ident")).to_expr()),
                    parse(vec![TokenType::Identifier(String::from("ident")).to_token()]));
+
+        assert_eq!(Ok(ExprData::Bool(true).to_expr()),
+                   parse(vec![TokenType::Bool(true).to_token()]));
     }
 
     #[test]
