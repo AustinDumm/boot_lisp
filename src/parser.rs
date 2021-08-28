@@ -225,7 +225,11 @@ where I: Iterator<Item = &'a Token> {
             TokenType::Dot => {
                 token_stream.next();
                 let final_element = parse_item(token_stream)?;
-                return Ok(ExprData::DottedList(list_items.into_iter(), Box::new(final_element)).to_expr())
+                if final_element.expr_data == ExprData::Nil {
+                    return Ok(ExprData::List(list_items.into_iter()).to_expr())
+                } else {
+                    return Ok(ExprData::DottedList(list_items.into_iter(), Box::new(final_element)).to_expr())
+                }
             },
             _ => {
                 list_items.push(parse_item(token_stream)?)
