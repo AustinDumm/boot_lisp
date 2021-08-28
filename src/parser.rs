@@ -229,10 +229,21 @@ where I: Iterator<Item = &'a Token> {
             TokenType::Dot => {
                 token_stream.next();
                 let final_element = parse_item(token_stream)?;
-                if final_element.expr_data == ExprData::Nil {
-                    return Ok(ExprData::List(list_items.into_iter()).to_expr())
-                } else {
-                    return Ok(ExprData::DottedList(list_items.into_iter(), Box::new(final_element)).to_expr())
+                match final_element.expr_data {
+                    ExprData::Nil =>
+                        return Ok(ExprData::List(list_items.into_iter()).to_expr()),
+                    ExprData::List(mut iter) => {
+                        let mut collected: Vec<Expr> = iter.collect();
+                        list_items.append(&mut collected);
+                        return Ok(ExprData::List(list_items.into_iter()).to_expr())
+                    },
+                    ExprData::DottedList(iter, end) => {
+                        let mut collected: Vec<Expr> = iter.collect();
+                        list_items.append(&mut collected);
+                        return Ok(ExprData::DottedList(list_items.into_iter(), end).to_expr())
+                    },
+                    _ =>
+                        return Ok(ExprData::DottedList(list_items.into_iter(), Box::new(final_element)).to_expr()),
                 }
             },
             _ => {
