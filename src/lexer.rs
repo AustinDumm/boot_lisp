@@ -259,9 +259,7 @@ where I: Iterator<Item = char> {
                 result = result * (base as i32) + digit;
                 stream.next();
             }
-            c if c.is_whitespace() |
-                 TokenType::is_open_brace(c) |
-                 TokenType::is_close_brace(c) => {
+            c if TokenType::is_delimiter(&c) => {
                 break;
             }
             c => {
@@ -297,7 +295,7 @@ where I: Iterator<Item = char> {
     let mut identifier_name = String::from(initial_name);
     while let Some(peeked) = stream.peek() {
         match peeked {
-            c if c.is_whitespace() =>
+            c if TokenType::is_delimiter(&c) =>
                 break,
             c => {
                 identifier_name.push(*c);
