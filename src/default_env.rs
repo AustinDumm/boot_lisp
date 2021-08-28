@@ -212,6 +212,56 @@ fn build_lambda(frame: StackFrame, _stack: &mut CallStack) -> StackFrame {
     }
 }
 
+//=============== Conditional Evaluation ===============
+
+fn if_impl(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
+    let mut rib_iter = frame.rib.iter();
+    rib_iter.next();
+    if let Some(Expr { expr_data: conditional_data }) = rib_iter.next() {
+        // Conditional has been evaluated
+        match (conditional_data, frame.expr.expr_data) {
+            (ExprData::Bool(true), ExprData::List(mut iter)) => {
+                let true_expr = iter.next().unwrap();
+
+                StackFrame::new(true_expr,
+                                frame.env,
+                                vec![])
+            },
+            (ExprData::Bool(false), ExprData::List(mut iter)) => {
+                iter.next();
+                let false_expr = iter.next().unwrap();
+
+                StackFrame::new(false_expr,
+                                frame.env,
+                                vec![])
+            },
+            (ExprData::Bool(_), other) => {
+                panic!("if expressions must contain list. Found: {:?}", other)
+            },
+            (other, _) => {
+                panic!("First argument to an if expression must be boolean. Found: {:?}", other)
+            },
+        }
+    } else {
+        // Conditional needs evaluation
+        match frame.expr.expr_data {
+            ExprData::List(iter) => {
+                let mut iter = iter.clone();
+                let conditional_expr = iter.next().unwrap();
+
+                stack.push_frame(StackFrame::new(ExprData::List(iter).to_expr(),
+                                                 frame.env.clone(),
+                                                 frame.rib));
+
+                StackFrame::new(conditional_expr,
+                                frame.env,
+                                vec![])
+            }
+            other => panic!("if expressions must be passed arguments via list. Found: {:?}", other),
+        }
+    }
+}
+
 //=============== Environment Creation ===============
 pub fn default_env() -> Env {
     Env::containing(
@@ -229,6 +279,7 @@ pub fn default_env() -> Env {
             ("=".to_string(), ExprData::Function("=".to_string(), eq).to_expr()),
 
             ("lambda".to_string(), ExprData::Function("lambda".to_string(), build_lambda).to_expr()),
+            ("if".to_string(), ExprData::Function("if".to_string(), if_impl).to_expr()),
         ].into_iter().collect()
     )
 }

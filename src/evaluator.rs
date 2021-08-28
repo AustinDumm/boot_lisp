@@ -199,13 +199,13 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
                                                             vec![]));
                     } else {
                         let mut rib_iter = rib.into_iter();
-                        if let Some(Expr { expr_data: ExprData::Lambda(args, body, closure_env) }) =
-                            rib_iter.next() {
+                        let expr = rib_iter.next();
+                        if let Some(Expr { expr_data: ExprData::Lambda(args, body, closure_env) }) = expr {
                                 let new_env = closure_env.extend((*args).clone(), 
                                                                  ExprData::List(rib_iter).to_expr());
                                 active_frame = Some(StackFrame::new(*body, new_env, vec![]));
                         } else {
-                            return Err(EvalError::new("Application attempted with non-applicable first element in list"));
+                            return Err(EvalError::new(&format!("Application attempted with non-applicable first element in list. Found: {:?}", expr)));
                         }
                     }
                 }
