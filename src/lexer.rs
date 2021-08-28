@@ -101,6 +101,20 @@ impl TokenType {
     pub fn is_close_brace(test: &char) -> bool {
         return *test == ')';
     }
+
+    /// Tests whether character is delimiter. A delimiter is a character that can end a token such
+    /// as whitespace or a brace
+    ///
+    /// ```
+    /// assert!(TokenType::is_delimiter(&'('));
+    /// assert!(TokenType::is_delimiter(&')'));
+    /// assert!(TokenType::is_delimiter(&' '));
+    /// assert!(!TokenType::is_delimiter(&'b'));
+    pub fn is_delimiter(test: &char) -> bool {
+        TokenType::is_open_brace(test) ||
+            TokenType::is_close_brace(test) ||
+            test.is_whitespace()
+    }
 }
 
 /// Stores TokenType data and other important data retrieved while lexing a character stream
@@ -170,6 +184,9 @@ pub fn lex(program: String) -> Result<Vec<Token>, LexError> {
             '\'' => {
                 token_list.push(TokenType::Quote.to_token());
                 stream.next();
+            }
+            '#' => {
+                token_list.push(lex_octothorpe(&mut stream)?);
             }
             c if c.is_digit(10) => {
                 token_list.push(lex_digit(&mut stream, false)?);
@@ -292,6 +309,33 @@ where I: Iterator<Item = char> {
     Ok(TokenType::Identifier(identifier_name).to_token())
 }
 
+fn lex_octothorpe<I>(stream: &mut Peekable<I>) -> LexResult
+where I: Iterator<Item = char> {
+    // Drop octothorpe
+    stream.next();
+    let result = 
+        match stream.next() {
+            Some('t') =>
+                Ok(TokenType::Bool(true).to_token()),
+            Some('f') =>
+                Ok(TokenType::Bool(false).to_token()),
+            Some(other) =>
+                Err(LexError::new(&format!("Invalid character found after #: {}", other))),
+            None =>
+                Err(LexError::new(&format!("End of stream found after #"))),
+        };
+
+    if let Some(peeked) = stream.peek() {
+        if !TokenType::is_delimiter(peeked) {
+            Err(LexError::new(&format!("Invalid character found after boolean value: {}", peeked)))
+        } else {
+            result
+        }
+    } else {
+        result
+    }
+}
+
 
 #[cfg(test)]
 mod lexing_tests {
@@ -376,7 +420,7 @@ mod lexing_tests {
                    Ok(vec![TokenType::Bool(true).to_token()]));
 
         assert_eq!(lex(String::from("#f")),
-                   Ok(vec![TokenType::Bool(true).to_token()]));
+                   Ok(vec![TokenType::Bool(false).to_token()]));
     }
 }
 
