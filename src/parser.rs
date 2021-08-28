@@ -220,7 +220,11 @@ where I: Iterator<Item = &'a Token> {
         match token.token_type {
             TokenType::CloseBrace => {
                 token_stream.next();
-                return Ok(ExprData::List(list_items.into_iter()).to_expr())
+                if list_items.len() == 0 {
+                    return Ok(ExprData::Nil.to_expr())
+                } else {
+                    return Ok(ExprData::List(list_items.into_iter()).to_expr())
+                }
             },
             TokenType::Dot => {
                 token_stream.next();
@@ -282,6 +286,28 @@ mod tests {
                               TokenType::OpenBrace.to_token(),
                               TokenType::Integer(1).to_token(),
                               TokenType::Integer(2).to_token(),
+                              TokenType::CloseBrace.to_token()]));
+    }
+
+    #[test]
+    fn parses_dotted_lists() {
+        assert_eq!(Ok(ExprData::DottedList(vec![ExprData::Integer(512).to_expr(),
+                                                ExprData::ident_from("ident").to_expr()].into_iter(),
+                                           Box::new(ExprData::Integer(667).to_expr())).to_expr()),
+                   parse(vec![TokenType::OpenBrace.to_token(),
+                              TokenType::Integer(512).to_token(),
+                              TokenType::ident_from("ident").to_token(),
+                              TokenType::Dot.to_token(),
+                              TokenType::Integer(667).to_token(),
+                              TokenType::CloseBrace.to_token()]));
+
+        assert_eq!(Ok(ExprData::List(vec![ExprData::Integer(951).to_expr(),
+                                          ExprData::ident_from("blah").to_expr()].into_iter()).to_expr()),
+                   parse(vec![TokenType::OpenBrace.to_token(),
+                              TokenType::Integer(951).to_token(),
+                              TokenType::ident_from("blah").to_token(),
+                              TokenType::Dot.to_token(),
+                              TokenType::OpenBrace.to_token(),
                               TokenType::CloseBrace.to_token()]));
     }
 }
