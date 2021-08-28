@@ -1,4 +1,9 @@
 
+use crate::lexer::{
+    BootLispError,
+    ErrorType,
+};
+
 use crate::parser::{
     Expr,
     ExprData,
@@ -13,21 +18,7 @@ use crate::call_stack::{
     CallStack,
 };
 
-
-/// Error type to be returned when evaluation fails. Contains a message describing the cause of the
-/// evaluation failure
-#[derive(Debug, PartialEq)]
-pub struct EvalError {
-    pub message: String,
-}
-
-impl EvalError {
-    pub fn new(message: &str) -> EvalError {
-        EvalError { message: String::from(message) }
-    }
-}
-
-type EvalResult = Result<Expr, EvalError>;
+type EvalResult = Result<Expr, BootLispError>;
 
 /// Iteratively evaluates arbitrary boot lisp expressions
 ///
@@ -46,7 +37,8 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
                 if let Some(result) = accumulator {
                     return Ok(result)
                 } else {
-                    return Err(EvalError::new("Failed to find result in accumulator at end of evaluation"))
+                    return Err(BootLispError::new(ErrorType::Eval,
+                                                  "Failed to find result in accumulator at end of evaluation"))
                 }
             },
             
@@ -122,7 +114,8 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
                     accumulator = Some(expr_lock.read().unwrap().clone());
                     active_frame = call_stack.pop_frame()
                 } else {
-                    return Err(EvalError::new(&format!("Failed to lookup value for identifier: {}", name)))
+                    return Err(BootLispError::new(ErrorType::Eval,
+                                                  &format!("Failed to lookup value for identifier: {}", name)))
                 }
             },
 
@@ -144,7 +137,8 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
                                             rib: rib
                     });
                 } else {
-                    return Err(EvalError::new("Cannot evaluate dotted list"));
+                    return Err(BootLispError::new(ErrorType::Eval,
+                                                  "Cannot evaluate dotted list"));
                 }
             },
 
@@ -205,7 +199,8 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
                                                                  ExprData::List(rib_iter).to_expr());
                                 active_frame = Some(StackFrame::new(*body, new_env, vec![]));
                         } else {
-                            return Err(EvalError::new(&format!("Application attempted with non-applicable first element in list. Found: {:?}", expr)));
+                            return Err(BootLispError::new(ErrorType::Eval,
+                                                          &format!("Application attempted with non-applicable first element in list. Found: {:?}", expr)));
                         }
                     }
                 }
@@ -265,7 +260,8 @@ mod tests {
     fn fails_to_evaluate_dotted_list() {
         assert_eq!(eval(ExprData::DottedList(vec![ExprData::Integer(2421).to_expr()].into_iter(),
                                              Box::new(ExprData::Identifier(String::from("testing")).to_expr())).to_expr(), Env::new()).unwrap_err(),
-                   EvalError::new("Cannot evaluate dotted list"));
+                   BootLispError::new(ErrorType::Eval,
+                                      "Cannot evaluate dotted list"));
     }
 
     #[test]

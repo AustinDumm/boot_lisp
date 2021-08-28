@@ -6,6 +6,8 @@ use std::vec::IntoIter;
 use crate::lexer::{
     Token,
     TokenType,
+    BootLispError,
+    ErrorType,
 };
 
 use crate::call_stack::{
@@ -149,19 +151,7 @@ impl Expr {
     }
 }
 
-/// Error type containing message describing the cause of a parsing error
-#[derive(Debug, PartialEq, Clone)]
-pub struct ParseError {
-    message: String
-}
-
-type ParseResult = Result<Expr, ParseError>;
-
-impl ParseError {
-    pub fn new(message: &str) -> ParseError {
-        ParseError { message: String::from(message) }
-    }
-}
+type ParseResult = Result<Expr, BootLispError>;
 
 /// Convert a flat list of tokens into an Abstract Syntax Tree structure of expressions. 
 ///
@@ -205,12 +195,15 @@ where I: Iterator<Item = &'a Token> {
             TokenType::Bool(value) => Ok(ExprData::Bool(*value).to_expr()),
             TokenType::Integer(value) => Ok(ExprData::Integer(*value).to_expr()),
             TokenType::Identifier(value) => Ok(ExprData::Identifier(value.clone()).to_expr()),
-            TokenType::CloseBrace => Err(ParseError::new("Close parenthesis found without matching open")),
-            TokenType::Dot => Err(ParseError::new("Dot found outside of list")),
+            TokenType::CloseBrace => Err(BootLispError::new(ErrorType::Parse,
+                                                            "Close parenthesis found without matching open")),
+            TokenType::Dot => Err(BootLispError::new(ErrorType::Parse,
+                                                     "Dot found outside of list")),
             TokenType::Quote => Ok(ExprData::Quote(Box::new(parse_item(token_stream)?)).to_expr()),
         }
     } else {
-        Err(ParseError::new("Not yet implemented"))
+        Err(BootLispError::new(ErrorType::Parse,
+                               "Not yet implemented"))
     }
 }
 
@@ -256,7 +249,8 @@ where I: Iterator<Item = &'a Token> {
         }
     }
 
-    Err(ParseError::new(&format!("Unexpected end to token stream found while parsing list: {:?}", list_items)))
+    Err(BootLispError::new(ErrorType::Parse,
+                           &format!("Unexpected end to token stream found while parsing list: {:?}", list_items)))
 }
 
 #[cfg(test)]

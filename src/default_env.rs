@@ -216,7 +216,9 @@ fn build_lambda(frame: StackFrame, _stack: &mut CallStack) -> StackFrame {
 
 fn if_impl(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
     let mut rib_iter = frame.rib.iter();
+    // Drop function value from iter
     rib_iter.next();
+
     if let Some(Expr { expr_data: conditional_data }) = rib_iter.next() {
         // Conditional has been evaluated
         match (conditional_data, frame.expr.expr_data) {

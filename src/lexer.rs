@@ -132,25 +132,33 @@ pub struct Token {
     pub token_type: TokenType,
 }
 
-/// Error type for any failed lexing. Contains a message string to store information about the
+#[derive(Debug, PartialEq)]
+pub enum ErrorType {
+    Lex,
+    Parse,
+    Eval,
+}
+
+/// Error type for any failed operation in the boot lisp interpreter. Contains a message string to store information about the
 /// error
 #[derive(Debug, PartialEq)]
-pub struct LexError {
+pub struct BootLispError {
+    error_type: ErrorType,
     message: String,
 }
 
-impl LexError {
-    pub fn new(message: &str) -> LexError {
-        LexError { message: String::from(message) }
+impl BootLispError {
+    pub fn new(error_type: ErrorType, message: &str) -> BootLispError {
+        BootLispError { error_type, message: String::from(message) }
     }
 }
 
-pub type LexResult = Result<Token, LexError>;
+pub type LexResult = Result<Token, BootLispError>;
 
 /// Takes in a program and lexes into valid Program Tokens
 ///
 /// Converts program to a character stream with one character lookahead. Uses the one-lookahead
-/// stream to convert into a vector of tokens. Returns a LexError if any tokens are ill-formed or
+/// stream to convert into a vector of tokens. Returns a BootLispError if any tokens are ill-formed or
 /// erroneous.
 ///
 /// ```
@@ -161,7 +169,7 @@ pub type LexResult = Result<Token, LexError>;
 ///                    TokenType::ident_from("identifier").to_token(),
 ///                    TokenType::CloseBrace.to_token()]));
 /// ```
-pub fn lex(program: String) -> Result<Vec<Token>, LexError> {
+pub fn lex(program: String) -> Result<Vec<Token>, BootLispError> {
     let mut stream = program.chars().peekable();
     let mut token_list: Vec<Token> = vec![];
     while let Some(top_char) = stream.peek() {
@@ -233,7 +241,7 @@ where I: Iterator<Item = char> {
 /// Lexes a peekable character stream whose current first character is a digit
 ///
 /// A digit can currently only lex as part of an integer meaning any character other than a digit
-/// or whitespace will cause an error which returns Err(LexError) containing a message of the
+/// or whitespace will cause an error which returns Err(BootLispError) containing a message of the
 /// erring character. Function takes in a flag if the number to be lexed should be treated as
 /// negative due to an already-lexed and thrown-away "-" character preceeding it. "-" characters
 /// are handled in [lex_minus].
@@ -246,7 +254,8 @@ where I: Iterator<Item = char> {
 ///            Ok(TokenType::Integer(-284).to_token()));
 ///
 /// assert_eq!(lex_digit(String::from("a").chars().peekable(), true),
-///            Err(LexError::new(String::from("Unexpected character found while lexing number: a"))));
+///            Err(BootLispError::new(ErrorType::Lex,
+///                                   String::from("Unexpected character found while lexing number: a"))));
 /// ```
 fn lex_digit<I>(stream: &mut Peekable<I>, is_negative: bool) -> LexResult
 where I: Iterator<Item = char> {
@@ -263,7 +272,8 @@ where I: Iterator<Item = char> {
                 break;
             }
             c => {
-                return Err(LexError::new(&format!("Unexpected character found while lexing number: {}", c)));
+                return Err(BootLispError::new(ErrorType::Lex,
+                                              &format!("Unexpected character found while lexing number: {}", c)));
             }
         }
     }
@@ -318,14 +328,17 @@ where I: Iterator<Item = char> {
             Some('f') =>
                 Ok(TokenType::Bool(false).to_token()),
             Some(other) =>
-                Err(LexError::new(&format!("Invalid character found after #: {}", other))),
+                Err(BootLispError::new(ErrorType::Lex,
+                                       &format!("Invalid character found after #: {}", other))),
             None =>
-                Err(LexError::new(&format!("End of stream found after #"))),
+                Err(BootLispError::new(ErrorType::Lex,
+                                       &format!("End of stream found after #"))),
         };
 
     if let Some(peeked) = stream.peek() {
         if !TokenType::is_delimiter(peeked) {
-            Err(LexError::new(&format!("Invalid character found after boolean value: {}", peeked)))
+            Err(BootLispError::new(ErrorType::Lex,
+                                   &format!("Invalid character found after boolean value: {}", peeked)))
         } else {
             result
         }
