@@ -1,0 +1,5 @@
+(((lambda (f) (f f)) (lambda (recurse)
+    (lambda (n total)
+        (if (= n 1)
+            total
+            ((recurse recurse) (- n 1) (* n total)))))) 8 1)
