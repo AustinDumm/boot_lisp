@@ -1,5 +1,5 @@
 
-#![warn(missing_docs)]
+#![allow(dead_code)]
 
 mod lexer;
 mod parser;
@@ -18,17 +18,12 @@ use std::fs;
 use clap::{
     App,
     Arg,
-    ArgGroup,
     ArgMatches,
 };
 
-use crate::lexer::{
-    BootLispError,
-};
+use crate::lexer::BootLispError;
 
-use crate::parser::{
-    Expr,
-};
+use crate::parser::Expr;
 
 fn clap_args() -> ArgMatches {
     App::new("boot_lisp")
@@ -57,7 +52,7 @@ fn main() {
                 let mut line = String::new();
                 io::stdin().read_line(&mut line).expect("Failure reading input");
 
-                println!("{:?}", 
+                println!("{}", 
                     eval_pipeline(line).unwrap()
                 );
             }
@@ -67,7 +62,7 @@ fn main() {
                                         .expect("failed to open file")
                                         .parse()
                                         .expect("failed to parse file");
-            println!("{:?}", eval_pipeline(program));
+            println!("{}", eval_pipeline(program).expect("Failure evaluating"));
         }
     }
 }

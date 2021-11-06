@@ -66,17 +66,41 @@ pub enum ExprData {
 
 impl std::fmt::Debug for ExprData {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
+impl std::fmt::Display for ExprData {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         use ExprData::*;
         match self {
-            Bool(ref b) => b.fmt(f),
+            Bool(true) => "#t".fmt(f),
+            Bool(false) => "#f".fmt(f),
             Integer(ref i) => i.fmt(f),
             Identifier(ref s) => s.fmt(f),
-            Lambda(ref a, ref b, ref e) => { a.fmt(f)?; b.fmt(f)?; e.fmt(f) },
-            Function(name, _) => write!(f, "<Built-In Function:{}>", name),
-            List(ref iter) => iter.fmt(f),
-            DottedList(ref iter, ref e) => { iter.fmt(f)?; e.fmt(f) },
+            Lambda(_, _, _) => write!(f, "<Lambda>"),
+            Function(name, _) => write!(f, "<Built-In Function: {}>", name),
+            List(ref iter) => {
+                let count = iter.clone().count();
+                write!(f, "(")?;
+                for (index, item) in iter.clone().enumerate() {
+                    write!(f, "{}", item)?;
+                    
+                    if index != count - 1 {
+                        write!(f, " ")?;
+                    }
+                }
+                write!(f, ")")
+            },
+            DottedList(ref iter, ref e) => {
+                write!(f, "(")?;
+                for item in iter.clone() {
+                    write!(f, "{} ", item)?;
+                }
+                write!(f, ". {})", e)
+            },
             Nil => write!(f, "Nil"),
-            Quote(ref e) => e.fmt(f),
+            Quote(ref e) => write!(f, "'{}", e),
         }
     }
 }
@@ -129,6 +153,12 @@ impl ExprData {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Expr {
     pub expr_data: ExprData
+}
+
+impl std::fmt::Display for Expr {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.expr_data)
+    }
 }
 
 impl Expr {
