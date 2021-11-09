@@ -291,7 +291,7 @@ fn if_impl(_accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &m
 
 //=============== Quote Functions ===============
 
-fn quote(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+pub fn quote(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
     if let Some(active_frame) = frame {
         if let Expr { expr_data: ExprData::List(list) } = &active_frame.expr {
             let mut list = list.clone();

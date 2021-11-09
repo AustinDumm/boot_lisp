@@ -19,6 +19,8 @@ use crate::env::{
     Env,
 };
 
+use crate::default_env;
+
 /// Enum type holding all different options for expressions in boot lisp.
 /// - Integer
 ///     - Type contains a 32 bit integer. Positive or negative whole number
@@ -56,9 +58,6 @@ use crate::env::{
 ///     non-S-Expression.
 /// - Nil
 ///     - A representation of the end of a well-formed S-Expression list.
-/// - Quote
-///     - A quoted expression is one that is treated as data. That is, not to be evaluated but
-///     treated as pure data by other evaluated code.
 #[derive(Clone)]
 pub enum ExprData {
     Bool(bool),
@@ -69,7 +68,6 @@ pub enum ExprData {
     List(IntoIter<Expr>),
     DottedList(IntoIter<Expr>, Box<Expr>),
     Nil,
-    Quote(Box<Expr>),
 }
 
 impl std::fmt::Debug for ExprData {
@@ -108,7 +106,6 @@ impl std::fmt::Display for ExprData {
                 write!(f, ". {})", e)
             },
             Nil => write!(f, "Nil"),
-            Quote(ref e) => write!(f, "'{}", e),
         }
     }
 }
@@ -128,7 +125,6 @@ impl PartialEq for ExprData {
                 => this_list.clone().eq(other_list.clone()) &&
                    *this_last == *other_last,
             (ExprData::Nil, ExprData::Nil) => true,
-            (ExprData::Quote(first), ExprData::Quote(second)) => first == second,
             (_, _) => false,
         }
     }
@@ -237,7 +233,7 @@ where I: Iterator<Item = &'a Token> {
                                                             "Close parenthesis found without matching open")),
             TokenType::Dot => Err(BootLispError::new(ErrorType::Parse,
                                                      "Dot found outside of list")),
-            TokenType::Quote => Ok(ExprData::Quote(Box::new(parse_item(token_stream)?)).to_expr()),
+            TokenType::Quote => Ok(ExprData::List(vec![ExprData::Function("quote".to_string(), default_env::quote).to_expr(), parse_item(token_stream)?].into_iter()).to_expr()),
         }
     } else {
         Err(BootLispError::new(ErrorType::Parse,

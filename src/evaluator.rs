@@ -84,21 +84,6 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
                 active_frame = call_stack.pop_frame();
             },
 
-            // If the active frame expr is a quoted expression, set the accumulator to the
-            // contained expr and pop the current stack frame as it is no longer needed. This
-            // "passes" the contained expression up to the previous frame without evaluation to
-            // accomplish the intention of a quoted expr
-            Some(
-                StackFrame {
-                    expr: Expr { expr_data: ExprData::Quote(quoted_expr) },
-                    env: _,
-                    rib: _
-                }
-            ) => {
-                accumulator = Some(*quoted_expr);
-                active_frame = call_stack.pop_frame();
-            },
-
             // If the active frame expr is an identifier, use the current environment to lookup the
             // expr bound to that identifier. Set the accumulator to the bound expr and pop the
             // current frame as it is no longer needed. This "passes" the bound expr up to the
