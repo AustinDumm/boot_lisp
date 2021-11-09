@@ -16,34 +16,40 @@ use crate::env::{
 };
 
 
-fn eval_arguments_and_apply<F>(frame: StackFrame, 
-                               stack: &mut CallStack, 
-                               application: F) -> StackFrame
-                               where F: FnOnce(IntoIter<Expr>) -> Expr {
-    if let Expr { expr_data: ExprData::List(mut list) } = frame.expr {
-        if let Some(next_expr) = list.next() {
-            stack.push_frame(StackFrame::new(ExprData::List(list).to_expr(),
-                                             frame.env.clone(),
-                                             frame.rib));
-            StackFrame::new(next_expr,
-                            frame.env.clone(),
-                            vec![])
-        } else {
-            // Throw away the Function expr that starts the list
-            let mut iter = frame.rib.into_iter();
-            iter.next();
+fn eval_arguments_and_apply<F>(accumulator: &mut Option<Expr>,
+                               frame: Option<StackFrame>,
+                               stack: &mut CallStack,
+                               application: F) -> Option<StackFrame>
+where F: FnOnce(IntoIter<Expr>) -> Expr {
+    if let Some(frame) = frame {
+        if let Expr { expr_data: ExprData::List(mut list) } = frame.expr {
+            if let Some(next_expr) = list.next() {
+                stack.push_frame(StackFrame::new(ExprData::List(list).to_expr(),
+                                                 frame.env.clone(),
+                                                 frame.rib));
+                Some(StackFrame::new(next_expr,
+                                     frame.env.clone(),
+                                     vec![]))
+            } else {
+                // Throw away the Function expr that starts the list
+                let mut iter = frame.rib.into_iter();
+                iter.next();
 
-            let result = application(iter);
-            StackFrame::new(result, frame.env, vec![])
+                *accumulator = Some(application(iter));
+                stack.pop_frame()
+            }
+        } else {
+            panic!("Non-list expr type given to Function evaluation")
         }
     } else {
-        panic!("Non-list expr type given to Function evaluation")
+        panic!("No frame found for arguments evaluation")
     }
 }
 
 //=============== Arithmetic Functions ===============
-fn add(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
-    eval_arguments_and_apply(frame,
+fn add(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_apply(accumulator,
+                             frame,
                              stack,
                              |iter| {
                                  ExprData::Integer(
@@ -57,8 +63,9 @@ fn add(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
                              })
 }
 
-fn sub(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
-    eval_arguments_and_apply(frame,
+fn sub(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_apply(accumulator,
+                             frame,
                              stack,
                              |iter| {
                                  ExprData::Integer(
@@ -72,8 +79,9 @@ fn sub(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
                              })
 }
 
-fn mul(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
-    eval_arguments_and_apply(frame,
+fn mul(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_apply(accumulator,
+                             frame,
                              stack,
                              |iter| {
                                  ExprData::Integer(
@@ -87,8 +95,9 @@ fn mul(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
                              })
 }
 
-fn div(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
-    eval_arguments_and_apply(frame,
+fn div(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_apply(accumulator,
+                             frame,
                              stack,
                              |iter| {
                                  ExprData::Integer(
@@ -102,8 +111,9 @@ fn div(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
                              })
 }
 
-fn modulo(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
-    eval_arguments_and_apply(frame,
+fn modulo(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_apply(accumulator,
+                             frame,
                              stack,
                              |iter| {
                                  ExprData::Integer(
@@ -120,9 +130,13 @@ fn modulo(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
 
 //=============== Comparison Functions ===============
 
-fn eval_arguments_and_compare<F>(frame: StackFrame, stack: &mut CallStack, cmp: F) -> StackFrame
+fn eval_arguments_and_compare<F>(accumulator: &mut Option<Expr>,
+                                 frame: Option<StackFrame>,
+                                 stack: &mut CallStack,
+                                 cmp: F) -> Option<StackFrame>
 where F: Fn(&Expr, &Expr) -> bool {
-    eval_arguments_and_apply(frame,
+    eval_arguments_and_apply(accumulator,
+                             frame,
                              stack,
                              |mut iter| {
                                  if let Some(mut current_expr) = iter.next() {
@@ -140,8 +154,9 @@ where F: Fn(&Expr, &Expr) -> bool {
                              })
 }
 
-fn lt(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
-    eval_arguments_and_compare(frame,
+fn lt(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_compare(accumulator,
+                               frame,
                                stack,
                                |lhs, rhs| {
                                    match (&lhs.expr_data, &rhs.expr_data) {
@@ -151,8 +166,9 @@ fn lt(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
                                })
 }
 
-fn gt(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
-    eval_arguments_and_compare(frame,
+fn gt(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_compare(accumulator,
+                               frame,
                                stack,
                                |lhs, rhs| {
                                    match (&lhs.expr_data, &rhs.expr_data) {
@@ -162,8 +178,9 @@ fn gt(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
                                })
 }
 
-fn leq(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
-    eval_arguments_and_compare(frame,
+fn leq(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_compare(accumulator,
+                               frame,
                                stack,
                                |lhs, rhs| {
                                    match (&lhs.expr_data, &rhs.expr_data) {
@@ -173,8 +190,9 @@ fn leq(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
                                })
 }
 
-fn geq(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
-    eval_arguments_and_compare(frame,
+fn geq(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_compare(accumulator,
+                               frame,
                                stack,
                                |lhs, rhs| {
                                    match (&lhs.expr_data, &rhs.expr_data) {
@@ -184,8 +202,9 @@ fn geq(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
                                })
 }
 
-fn eq(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
-    eval_arguments_and_compare(frame,
+fn eq(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_compare(accumulator,
+                               frame,
                                stack,
                                |lhs, rhs| {
                                    match (&lhs.expr_data, &rhs.expr_data) {
@@ -197,70 +216,96 @@ fn eq(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
 
 //=============== Lambda Creation ===============
 
-fn build_lambda(frame: StackFrame, _stack: &mut CallStack) -> StackFrame {
-    match frame.expr.expr_data {
-        ExprData::List(mut iter) => {
-            let args_list = iter.next().unwrap();
-            let body = iter.next().unwrap();
-            StackFrame::new(ExprData::Lambda(Box::new(args_list),
-                                             Box::new(body),
-                                             frame.env.clone()).to_expr(),
-                            frame.env,
-                            vec![])
-        },
-        _ => panic!("Lambda must take list of information"),
+fn build_lambda(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    if let Some(active_frame) = frame {
+        match active_frame.expr.expr_data {
+            ExprData::List(mut iter) => {
+                let args_list = iter.next().unwrap();
+                let body = iter.next().unwrap();
+                *accumulator = Some(ExprData::Lambda(Box::new(args_list),
+                                                     Box::new(body),
+                                                     active_frame.env.clone()).to_expr());
+                stack.pop_frame()
+            },
+            _ => panic!("Lambda must take list of information"),
+        }
+    } else {
+        panic!("No frame found during evaluation of lambda")
     }
 }
 
 //=============== Conditional Evaluation ===============
 
-fn if_impl(frame: StackFrame, stack: &mut CallStack) -> StackFrame {
-    let mut rib_iter = frame.rib.iter();
-    // Drop function value from iter
-    rib_iter.next();
+fn if_impl(_accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    if let Some(active_frame) = frame {
+        let mut rib_iter = active_frame.rib.iter();
+        // Drop function value from iter
+        rib_iter.next();
 
-    if let Some(Expr { expr_data: conditional_data }) = rib_iter.next() {
-        // Conditional has been evaluated
-        match (conditional_data, frame.expr.expr_data) {
-            (ExprData::Bool(true), ExprData::List(mut iter)) => {
-                let true_expr = iter.next().unwrap();
+        if let Some(Expr { expr_data: conditional_data }) = rib_iter.next() {
+            // Conditional has been evaluated
+            match (conditional_data, active_frame.expr.expr_data) {
+                (ExprData::Bool(true), ExprData::List(mut iter)) => {
+                    let true_expr = iter.next().unwrap();
 
-                StackFrame::new(true_expr,
-                                frame.env,
-                                vec![])
-            },
-            (ExprData::Bool(false), ExprData::List(mut iter)) => {
-                iter.next();
-                let false_expr = iter.next().unwrap();
+                    Some(StackFrame::new(true_expr,
+                                         active_frame.env.clone(),
+                                         vec![]))
+                },
+                (ExprData::Bool(false), ExprData::List(mut iter)) => {
+                    iter.next();
+                    let false_expr = iter.next().unwrap();
 
-                StackFrame::new(false_expr,
-                                frame.env,
-                                vec![])
-            },
-            (ExprData::Bool(_), other) => {
-                panic!("if expressions must contain list. Found: {:?}", other)
-            },
-            (other, _) => {
-                panic!("First argument to an if expression must be boolean. Found: {:?}", other)
-            },
+                    Some(StackFrame::new(false_expr,
+                                         active_frame.env.clone(),
+                                         vec![]))
+                },
+                (ExprData::Bool(_), other) => {
+                    panic!("if expressions must contain list. Found: {:?}", other)
+                },
+                (other, _) => {
+                    panic!("First argument to an if expression must be boolean. Found: {:?}", other)
+                },
+            }
+        } else {
+            // Conditional needs evaluation
+            match active_frame.expr.expr_data {
+                ExprData::List(mut iter) => {
+                    let conditional_expr = iter.next().unwrap();
+
+                    stack.push_frame(StackFrame::new(ExprData::List(iter).to_expr(),
+                                                     active_frame.env.clone(),
+                                                     active_frame.rib));
+
+                    Some(StackFrame::new(conditional_expr,
+                                         active_frame.env.clone(),
+                                         vec![]))
+                }
+                other => panic!("if expressions must be passed arguments via list. Found: {:?}", other),
+            }
         }
     } else {
-        // Conditional needs evaluation
-        match frame.expr.expr_data {
-            ExprData::List(iter) => {
-                let mut iter = iter.clone();
-                let conditional_expr = iter.next().unwrap();
+        panic!("No stack frame found for \"if\" evaluation")
+    }
+}
 
-                stack.push_frame(StackFrame::new(ExprData::List(iter).to_expr(),
-                                                 frame.env.clone(),
-                                                 frame.rib));
+//=============== Quote Functions ===============
 
-                StackFrame::new(conditional_expr,
-                                frame.env,
-                                vec![])
+fn quote(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    if let Some(active_frame) = frame {
+        if let Expr { expr_data: ExprData::List(list) } = &active_frame.expr {
+            let mut list = list.clone();
+            if let (Some(quoted_item), None) = (list.next(), list.next()) {
+                *accumulator = Some(quoted_item);
+                stack.pop_frame()
+            } else {
+                panic!("Invalid number of arguments provided to quote")
             }
-            other => panic!("if expressions must be passed arguments via list. Found: {:?}", other),
+        } else {
+            panic!("No arguments provided to quote")
         }
+    } else {
+        panic!("No frame found for evaluation of quoted expression")
     }
 }
 
@@ -279,6 +324,8 @@ pub fn default_env() -> Env {
             ("<=".to_string(), ExprData::Function("<=".to_string(), leq).to_expr()),
             (">=".to_string(), ExprData::Function(">=".to_string(), geq).to_expr()),
             ("=".to_string(), ExprData::Function("=".to_string(), eq).to_expr()),
+
+            ("quote".to_string(), ExprData::Function("quote".to_string(), quote).to_expr()),
 
             ("lambda".to_string(), ExprData::Function("lambda".to_string(), build_lambda).to_expr()),
             ("if".to_string(), ExprData::Function("if".to_string(), if_impl).to_expr()),

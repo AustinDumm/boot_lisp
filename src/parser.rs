@@ -38,6 +38,14 @@ use crate::env::{
 ///     The body is evaluated with respect to this environment extended by the bound parameters to
 ///     the argument identifiers. This environment is used to provide Lexical Scoping of the
 ///     evaluation of lambda functions
+/// - Function
+///     - Type representing a built-in function from a list of expressions to a single expression
+///     - Stored as a function pointer to a Rust function that takes in
+///         - Accumulator - Register storing the result of an evaluation
+///         - Current Frame - The current evaluation frame for this function evaluation
+///         - Frame Stack - All frames waiting for evaluation
+///     - Returns a new current frame and an updated accumulator and frame stack
+///     - Allows functions to have full control over evaluation order and data
 /// - List
 ///     - A representation of an S-Expression list.
 ///     - S-Expression is either:
@@ -57,7 +65,7 @@ pub enum ExprData {
     Integer(i32),
     Identifier(String),
     Lambda(Box<Expr>, Box<Expr>, Env),
-    Function(String, fn(StackFrame, &mut CallStack) -> StackFrame),
+    Function(String, fn(&mut Option<Expr>, Option<StackFrame>, &mut CallStack) -> Option<StackFrame>),
     List(IntoIter<Expr>),
     DottedList(IntoIter<Expr>, Box<Expr>),
     Nil,

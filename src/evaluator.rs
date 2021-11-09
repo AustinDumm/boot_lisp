@@ -167,9 +167,15 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
                     // If the current frame expr is a list and the accumulator is None, we are ready to
                     // evaluate the next item in the list.
                     // If there is a "next" item:
-                    //      Push this frame onto the stack
-                    //      Create a new stack frame with the "next" item as its expr and set as
-                    //          active_frame
+                    //      If the first item is a function
+                    //          Push the list into a stack frame and pass to the function to handle
+                    //          the evaluation in-function
+                    //      Else, if the list has an item
+                    //          Push this frame onto the stack
+                    //          Create a new stack frame with the "next" item as its expr and set as
+                    //              active_frame
+                    //      Else, we have no items left in the list
+                    //          Handle lambda evaluation
                     // If there is no next item in the list:
                     //      Execute function application:
                     //          Retrieve first item as the applicable
@@ -179,11 +185,15 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
                     //          Set the active_frame to this new frame
                     //          Loop to continue evaluation
                     if let Some(Expr { expr_data: ExprData::Function(_, fn_ptr) }) = rib.first() {
+                        let fn_ptr = fn_ptr.clone();
                         active_frame = Some(
-                            fn_ptr(StackFrame::new(ExprData::List(list).to_expr(),
-                                                   env,
-                                                   rib), 
-                                   &mut call_stack));
+                                StackFrame::new(ExprData::List(list).to_expr(),
+                                                env,
+                                                rib));
+                        active_frame =
+                            fn_ptr(&mut accumulator,
+                                   active_frame,
+                                   &mut call_stack);
                     } else if let Some(next_expr) = list.next() {
                         call_stack.push_frame(StackFrame::new(ExprData::List(list).to_expr(),
                                                               env.clone(),
