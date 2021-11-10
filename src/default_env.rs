@@ -289,6 +289,46 @@ fn if_impl(_accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &m
     }
 }
 
+//=============== List Manipulation ===============
+
+fn list_impl(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_apply(accumulator,
+                             frame,
+                             stack,
+                             |iter| {
+                                 ExprData::List(iter).to_expr()
+                             })
+}
+
+fn append_impl(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    fn concatenate_lists(iter: IntoIter<Expr>) -> Expr {
+        let mut iter = iter.peekable();
+
+        let mut append_vec: Vec<Expr> = vec![];
+        while let Some(next_expr) = iter.next() {
+            if iter.peek().is_none() {
+                match next_expr.expr_data {
+                    ExprData::List(_) => (),
+                    _ => return ExprData::DottedList(append_vec.into_iter(), Box::new(next_expr)).to_expr(),
+                }
+            }
+            
+            if let ExprData::List(iter) = next_expr.expr_data {
+                append_vec.extend(iter);
+            }
+        }
+
+        ExprData::List(append_vec.into_iter()).to_expr()
+    }
+
+    eval_arguments_and_apply(accumulator,
+                             frame,
+                             stack,
+                             |iter| {
+                                 concatenate_lists(iter)
+                             })
+}
+
 //=============== Quote Functions ===============
 
 pub fn quote(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
@@ -324,6 +364,9 @@ pub fn default_env() -> Env {
             ("<=".to_string(), ExprData::Function("<=".to_string(), leq).to_expr()),
             (">=".to_string(), ExprData::Function(">=".to_string(), geq).to_expr()),
             ("=".to_string(), ExprData::Function("=".to_string(), eq).to_expr()),
+
+            ("list".to_string(), ExprData::Function("list".to_string(), list_impl).to_expr()),
+            ("append".to_string(), ExprData::Function("append".to_string(), append_impl).to_expr()),
 
             ("quote".to_string(), ExprData::Function("quote".to_string(), quote).to_expr()),
 
