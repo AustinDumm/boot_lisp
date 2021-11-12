@@ -241,7 +241,15 @@ where I: Iterator<Item = &'a Token> {
                                                             "Close parenthesis found without matching open")),
             TokenType::Dot => Err(BootLispError::new(ErrorType::Parse,
                                                      "Dot found outside of list")),
-            TokenType::Quote => Ok(ExprData::List(vec![ExprData::Function("quote".to_string(), default_env::quote).to_expr(), parse_item(token_stream)?].into_iter()).to_expr()),
+            TokenType::Quote => 
+                Ok(ExprData::List(vec![ExprData::Identifier("quote".to_string()).to_expr(),
+                                       parse_item(token_stream)?].into_iter()).to_expr()),
+            TokenType::Quasiquote =>
+                Ok(ExprData::List(vec![ExprData::Identifier("quasiquote".to_string()).to_expr(),
+                                       parse_item(token_stream)?].into_iter()).to_expr()),
+            TokenType::Unquote =>
+                Ok(ExprData::List(vec![ExprData::Identifier("unquote".to_string()).to_expr(),
+                                       parse_item(token_stream)?].into_iter()).to_expr()),
         }
     } else {
         Err(BootLispError::new(ErrorType::Parse,

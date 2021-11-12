@@ -22,6 +22,13 @@ use std::convert::TryInto;
 /// - Quote
 ///     - ```[']```
 ///     - Marks an expression to be treated as a data literal rather than expression to evaluate
+/// - Quasiquote
+///     - ```[`]```
+///     - Marks an expression to be treated as a literal structure but allows elements of the
+///     structure to be marked for evaluation through unquote
+/// - Unquote
+///     - ```[,]```
+///     - Marks an subexpression within a quasiquoted expression to be evaluated
 ///
 /// Tokens are the smallest meaningful piece of a valid program in boot lisp. The TokenType enum
 /// holds the data for each of the types of tokens that can be in a program. These are generated
@@ -46,6 +53,8 @@ pub enum TokenType {
     Bool(bool),
     Integer(i32),
     Quote,
+    Quasiquote,
+    Unquote,
 }
 
 impl TokenType {
@@ -191,6 +200,14 @@ pub fn lex(program: String) -> Result<Vec<Token>, BootLispError> {
             }
             '\'' => {
                 token_list.push(TokenType::Quote.to_token());
+                stream.next();
+            }
+            '`' => {
+                token_list.push(TokenType::Quasiquote.to_token());
+                stream.next();
+            }
+            ',' => {
+                token_list.push(TokenType::Unquote.to_token());
                 stream.next();
             }
             '#' => {
