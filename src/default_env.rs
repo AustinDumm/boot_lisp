@@ -291,6 +291,27 @@ fn if_impl(_accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &m
 
 //=============== List Manipulation ===============
 
+fn cons(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_apply(accumulator,
+                             frame,
+                             stack,
+                             |mut iter| {
+                                 if let (Some(first), Some(rest), None) = (iter.next(), iter.next(), iter.next()) {
+                                     match rest.expr_data {
+                                         ExprData::List(rest) => {
+                                             let mut array = vec![first];
+                                             array.extend(rest);
+                                             ExprData::List(array.into_iter()).to_expr()
+                                         },
+                                         ExprData::Nil => ExprData::List(vec![first].into_iter()).to_expr(),
+                                         _ => ExprData::DottedList(vec![first].into_iter(), Box::new(rest)).to_expr(),
+                                     }
+                                 } else {
+                                     panic!("Invalid number of arguments provided to cons. Requires 2")
+                                 }
+                             })
+}
+
 fn list_impl(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
     eval_arguments_and_apply(accumulator,
                              frame,
@@ -411,6 +432,7 @@ pub fn default_env() -> Env {
             (">=".to_string(), ExprData::Function(">=".to_string(), geq).to_expr()),
             ("=".to_string(), ExprData::Function("=".to_string(), eq).to_expr()),
 
+            ("cons".to_string(), ExprData::Function("cons".to_string(), cons).to_expr()),
             ("list".to_string(), ExprData::Function("list".to_string(), list_impl).to_expr()),
             ("append".to_string(), ExprData::Function("append".to_string(), append_impl).to_expr()),
 
