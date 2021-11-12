@@ -349,6 +349,48 @@ pub fn quote(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &
     }
 }
 
+pub fn quasiquote(_accumulator: &mut Option<Expr>, frame: Option<StackFrame>, _stack: &mut CallStack) -> Option<StackFrame> {
+    // If list, output (list . (#recursive quasiquote eval of every item in list))
+    //      If first item is "unquote", return the next item in the list
+    //      Else, return '(list . ("recursive quasiquote eval of every item in list"))
+    // Else, return 'item
+    fn apply_quasiquote(expr: Expr) -> Expr {
+        match expr.expr_data {
+            ExprData::List(mut iter) => {
+                let mut peekable = iter.clone().peekable();
+                if Some(&Expr { expr_data: ExprData::Identifier("unquote".to_string()) }) == peekable.peek() {
+                    peekable.next();
+                    peekable.next().expect("Failed to find expression following unquote")
+                } else {
+                    let mut result_list: Vec<Expr> = vec![];
+                    result_list.push(ExprData::Function("list".to_string(), list_impl).to_expr());
+                    while let Some(expr) = iter.next() {
+                        result_list.push(apply_quasiquote(expr));
+                    }
+
+                    ExprData::List(result_list.into_iter()).to_expr()
+                }
+            },
+            _ => expr.quoted()
+        }
+    }
+
+    match frame {
+        Some(
+            StackFrame { expr: Expr { expr_data: ExprData::List(mut iter) },
+                         env,
+                         rib: _ }) =>  {
+            if let (Some(expr), None) = (iter.next(), iter.next()) {
+                let quasiquoted_expr = apply_quasiquote(expr);
+                Some(StackFrame::new(quasiquoted_expr, env.clone(), vec![]))
+            } else {
+                panic!("Error: Invalid arity to quasiquote. Quasiquote takes only one argument")
+            }
+        },
+        _ => panic!("Unexpected expr of non-list type for quasiquote")
+    }
+}
+
 //=============== Environment Creation ===============
 pub fn default_env() -> Env {
     Env::containing(
@@ -369,6 +411,7 @@ pub fn default_env() -> Env {
             ("append".to_string(), ExprData::Function("append".to_string(), append_impl).to_expr()),
 
             ("quote".to_string(), ExprData::Function("quote".to_string(), quote).to_expr()),
+            ("quasiquote".to_string(), ExprData::Function("quasiquote".to_string(), quasiquote).to_expr()),
 
             ("lambda".to_string(), ExprData::Function("lambda".to_string(), build_lambda).to_expr()),
             ("if".to_string(), ExprData::Function("if".to_string(), if_impl).to_expr()),

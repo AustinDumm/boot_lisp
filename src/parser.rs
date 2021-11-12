@@ -183,6 +183,14 @@ impl Expr {
 
         ExprData::List(list_exprs.into_iter()).to_expr()
     }
+
+    pub fn quoted(self) -> Expr {
+        ExprData::List(
+            vec![
+                ExprData::Function("quote".to_string(), default_env::quote).to_expr(),
+                self
+            ].into_iter()).to_expr()
+    }
 }
 
 type ParseResult = Result<Expr, BootLispError>;
