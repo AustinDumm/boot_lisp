@@ -391,6 +391,10 @@ pub fn quasiquote(_accumulator: &mut Option<Expr>, frame: Option<StackFrame>, _s
     }
 }
 
+fn unquote(_accumulator: &mut Option<Expr>, _frame: Option<StackFrame>, _stack: &mut CallStack) -> Option<StackFrame> {
+    panic!("Unexpected unquote found outside of quasiquoted expression")
+}
+
 //=============== Environment Creation ===============
 pub fn default_env() -> Env {
     Env::containing(
@@ -412,6 +416,7 @@ pub fn default_env() -> Env {
 
             ("quote".to_string(), ExprData::Function("quote".to_string(), quote).to_expr()),
             ("quasiquote".to_string(), ExprData::Function("quasiquote".to_string(), quasiquote).to_expr()),
+            ("unquote".to_string(), ExprData::Function("unquote".to_string(), unquote).to_expr()),
 
             ("lambda".to_string(), ExprData::Function("lambda".to_string(), build_lambda).to_expr()),
             ("if".to_string(), ExprData::Function("if".to_string(), if_impl).to_expr()),
