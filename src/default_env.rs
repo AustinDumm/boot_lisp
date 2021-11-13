@@ -545,6 +545,94 @@ fn unquote(_accumulator: &mut Option<Expr>, _frame: Option<StackFrame>, _stack: 
     panic!("Unexpected unquote found outside of quasiquoted expression")
 }
 
+//=============== Environment Manipulation ===============
+
+fn set(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    let frame = frame.unwrap();
+    match frame.rib.len() {
+        1 => {
+            // Read in the identifier unevaluated
+            match frame.expr.expr_data {
+                ExprData::List(mut iter) => {
+                    let expr = iter.next();
+                    if let Some(Expr { expr_data: ExprData::Identifier(identifier) }) = expr {
+                        let mut rib = frame.rib;
+                        rib.push(ExprData::Identifier(identifier).to_expr());
+                        Some(StackFrame {
+                            expr: ExprData::List(iter).to_expr(),
+                            env: frame.env,
+                            rib,
+                        })
+                    } else {
+                        panic!("set! must be given an identifier. Found: {:?}", expr);
+                    }
+                }
+                _ => panic!("List must be used to call set function")
+            }
+        },
+        2 => {
+            match frame.expr.expr_data {
+                ExprData::List(mut iter) => {
+                    if let Some(expr) = iter.next() {
+                        let next_frame = StackFrame {
+                            expr: ExprData::List(iter).to_expr(),
+                            env: frame.env.clone(),
+                            rib: frame.rib
+                        };
+                        stack.push_frame(next_frame);
+                        Some(StackFrame {
+                            expr,
+                            env: frame.env.clone(),
+                            rib: vec![]
+                        })
+                    } else {
+                        panic!("set! must be given two arguments")
+                    }
+                }
+                _ => panic!("set! must be given two arguments")
+            }
+        },
+        3 => {
+            // Set with the two exprs
+            let mut rib_iter = frame.rib.into_iter();
+            // Throw away the function expr
+            rib_iter.next();
+            if let (Some(Expr { expr_data: ExprData::Identifier(identifier) }),
+                    Some(expr),
+                    None) = (rib_iter.next(), rib_iter.next(), rib_iter.next()) {
+                if frame.env.get(&identifier).is_none() {
+                    panic!("Cannot set variable before definition")
+                }
+
+                let env = frame.env.clone();
+                env.set(identifier, expr);
+
+                *accumulator = Some(ExprData::Nil.to_expr());
+                stack.pop_frame()
+            } else {
+               panic!("Invalid rib found for evaluation of set!")
+            }
+        },
+        _ => panic!("Invalid number of arguments found for set!"),
+    }
+}
+
+//=============== Evaluation Control ===============
+
+fn begin(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_apply(accumulator,
+                             frame,
+                             stack,
+                             |iter| {
+                                let mut iter = iter.peekable();
+                                let mut value = iter.next();
+                                while iter.peek().is_some() {
+                                    value = iter.next();
+                                }
+                                value.expect("Unexpected end to list found when evaluating begin")
+                             })
+}
+
 //=============== Environment Creation ===============
 pub fn default_env() -> Env {
     Env::containing(
@@ -570,6 +658,10 @@ pub fn default_env() -> Env {
             ("quote".to_string(), ExprData::Function("quote".to_string(), quote).to_expr()),
             ("quasiquote".to_string(), ExprData::Function("quasiquote".to_string(), quasiquote).to_expr()),
             ("unquote".to_string(), ExprData::Function("unquote".to_string(), unquote).to_expr()),
+
+            ("set!".to_string(), ExprData::Function("set!".to_string(), set).to_expr()),
+
+            ("begin".to_string(), ExprData::Function("begin".to_string(), begin).to_expr()),
 
             ("lambda".to_string(), ExprData::Function("lambda".to_string(), build_lambda).to_expr()),
             ("if".to_string(), ExprData::Function("if".to_string(), if_impl).to_expr()),
