@@ -250,6 +250,9 @@ where I: Iterator<Item = &'a Token> {
             TokenType::Unquote =>
                 Ok(ExprData::List(vec![ExprData::Identifier("unquote".to_string()).to_expr(),
                                        parse_item(token_stream)?].into_iter()).to_expr()),
+            TokenType::UnquoteSplicing =>
+                Ok(ExprData::List(vec![ExprData::Identifier("unquote-splicing".to_string()).to_expr(),
+                                       parse_item(token_stream)?].into_iter()).to_expr()),
         }
     } else {
         Err(BootLispError::new(ErrorType::Parse,

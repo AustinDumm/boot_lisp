@@ -312,6 +312,47 @@ fn cons(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut C
                              })
 }
 
+fn first(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_apply(accumulator,
+                             frame,
+                             stack,
+                             |mut iter| {
+                                 if let (Some(expr), None) = (iter.next(), iter.next()) {
+                                     match expr.expr_data {
+                                         ExprData::List(mut iter) => {
+                                             iter.next().expect("No item found in list while evaluating 'first'")
+                                         },
+                                         _ => panic!("'first' must be given list")
+                                     }
+                                 } else {
+                                     panic!("Invalid number of arguments provided to first. Requires 1")
+                                 }
+                             })
+}
+
+fn rest(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_apply(accumulator,
+                             frame,
+                             stack,
+                             |mut iter| {
+                                 if let (Some(expr), None) = (iter.next(), iter.next()) {
+                                     match expr.expr_data {
+                                         ExprData::List(mut iter) => {
+                                             iter.next();
+                                             if iter.clone().peekable().peek().is_none() {
+                                                 ExprData::Nil.to_expr()
+                                             } else {
+                                                 ExprData::List(iter).to_expr()
+                                             }
+                                         },
+                                         _ => panic!("'rest' must be given a list")
+                                     }
+                                 } else {
+                                     panic!("Invalid number of arguments provided to rest. Requires 1")
+                                 }
+                             })
+}
+
 fn list_impl(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
     eval_arguments_and_apply(accumulator,
                              frame,
@@ -330,12 +371,19 @@ fn append_impl(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack:
             if iter.peek().is_none() {
                 match next_expr.expr_data {
                     ExprData::List(_) => (),
+                    ExprData::Nil => return ExprData::List(append_vec.into_iter()).to_expr(),
+                    ExprData::DottedList(list, last) => {
+                        append_vec.extend(list);
+                        return ExprData::DottedList(append_vec.into_iter(), last).to_expr()
+                    }
                     _ => return ExprData::DottedList(append_vec.into_iter(), Box::new(next_expr)).to_expr(),
                 }
             }
             
             if let ExprData::List(iter) = next_expr.expr_data {
                 append_vec.extend(iter);
+            } else {
+                panic!("Non-list provided as non-last element to append")
             }
         }
 
@@ -371,28 +419,109 @@ pub fn quote(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &
 }
 
 pub fn quasiquote(_accumulator: &mut Option<Expr>, frame: Option<StackFrame>, _stack: &mut CallStack) -> Option<StackFrame> {
-    // If list, output (list . (#recursive quasiquote eval of every item in list))
-    //      If first item is "unquote", return the next item in the list
-    //      Else, return '(list . ("recursive quasiquote eval of every item in list"))
-    // Else, return 'item
-    fn apply_quasiquote(expr: Expr) -> Expr {
+    fn apply_quasiquote(expr: Expr, depth: usize) -> Expr {
         match expr.expr_data {
             ExprData::List(mut iter) => {
-                let mut peekable = iter.clone().peekable();
-                if Some(&Expr { expr_data: ExprData::Identifier("unquote".to_string()) }) == peekable.peek() {
-                    peekable.next();
-                    peekable.next().expect("Failed to find expression following unquote")
-                } else {
-                    let mut result_list: Vec<Expr> = vec![];
-                    result_list.push(ExprData::Function("list".to_string(), list_impl).to_expr());
-                    while let Some(expr) = iter.next() {
-                        result_list.push(apply_quasiquote(expr));
-                    }
-
-                    ExprData::List(result_list.into_iter()).to_expr()
+                match iter.next() {
+                    Some(Expr { expr_data: ExprData::Identifier(identifier) }) 
+                        if identifier.as_str() == "quasiquote" => {
+                            let mut expr_list = vec![ExprData::Identifier("cons".to_string()).to_expr()];
+                            expr_list.push(ExprData::Identifier("quasiquote".to_string()).to_expr().quoted());
+                            if iter.clone().peekable().peek().is_some() {
+                                expr_list.push(apply_quasiquote(ExprData::List(iter).to_expr(), depth + 1));
+                            } else {
+                                expr_list.push(apply_quasiquote(ExprData::Nil.to_expr(), depth + 1));
+                            }
+                            ExprData::List(expr_list.into_iter()).to_expr()
+                    },
+                    Some(Expr { expr_data: ExprData::Identifier(identifier) })
+                        if identifier.as_str() == "unquote" || identifier.as_str() == "unquote-splicing" => {
+                            if depth > 0 {
+                                let mut expr_list = vec![ExprData::Identifier("cons".to_string()).to_expr()];
+                                expr_list.push(ExprData::Identifier(identifier).to_expr().quoted());
+                                if iter.clone().peekable().peek().is_some() {
+                                    expr_list.push(apply_quasiquote(ExprData::List(iter).to_expr(), depth - 1));
+                                } else {
+                                    expr_list.push(apply_quasiquote(ExprData::Nil.to_expr(), depth - 1));
+                                }
+                                ExprData::List(expr_list.into_iter()).to_expr()
+                            } else if let (Some(next), None, true) = (iter.next(), iter.next(), identifier.as_str() == "unquote") {
+                                next
+                            } else {
+                                panic!("Illegal use of {} in quasiquoted expression", identifier)
+                            }
+                    },
+                    Some(expr) => {
+                        let mut expr_list = vec![ExprData::Identifier("append".to_string()).to_expr()];
+                        expr_list.push(apply_quasiquote_list(expr, depth));
+                        if iter.clone().peekable().peek().is_some() {
+                            expr_list.push(apply_quasiquote(ExprData::List(iter).to_expr(), depth));
+                        }
+                        ExprData::List(expr_list.into_iter()).to_expr()
+                    },
+                    None => panic!("Unexpected end to expression list found while parsing quasiquote")
                 }
             },
-            _ => expr.quoted()
+            expr => expr.to_expr().quoted()
+        }
+    }
+
+    fn apply_quasiquote_list(expr: Expr, depth: usize) -> Expr {
+        match expr.expr_data {
+            ExprData::List(mut iter) => {
+                match iter.next() {
+                    Some(Expr { expr_data: ExprData::Identifier(identifier) })
+                        if identifier.as_str() == "quasiquote" => {
+                            let mut expr_list = vec![ExprData::Identifier("list".to_string()).to_expr()];
+                            let mut inner_list = vec![ExprData::Identifier("cons".to_string()).to_expr(),
+                                                      ExprData::Identifier("quasiquote".to_string()).to_expr().quoted()];
+                            if iter.clone().peekable().peek().is_some() {
+                                inner_list.push(apply_quasiquote(ExprData::List(iter).to_expr(), depth + 1));
+                            } else {
+                                inner_list.push(apply_quasiquote(ExprData::Nil.to_expr(), depth + 1));
+                            }
+                            expr_list.push(ExprData::List(inner_list.into_iter()).to_expr());
+                            ExprData::List(expr_list.into_iter()).to_expr()
+                    },
+                    Some(Expr { expr_data: ExprData::Identifier(identifier) })
+                        if identifier.as_str() == "unquote" || identifier.as_str() == "unquote-splicing" => {
+                            if depth > 0 {
+                                let mut expr_list = vec![ExprData::Identifier("list".to_string()).to_expr()];
+                                let mut inner_list = vec![ExprData::Identifier("cons".to_string()).to_expr(),
+                                                          ExprData::Identifier(identifier).to_expr().quoted()];
+                                if iter.clone().peekable().peek().is_some() {
+                                    inner_list.push(apply_quasiquote(ExprData::List(iter).to_expr(), depth - 1));
+                                } else {
+                                    inner_list.push(apply_quasiquote(ExprData::Nil.to_expr(), depth - 1));
+                                }
+                                expr_list.push(ExprData::List(inner_list.into_iter()).to_expr());
+                                ExprData::List(expr_list.into_iter()).to_expr()
+                            } else if identifier.as_str() == "unquote" {
+                                let mut expr_list = vec![ExprData::Identifier("list".to_string()).to_expr()];
+                                expr_list.extend(iter);
+                                ExprData::List(expr_list.into_iter()).to_expr()
+                            } else {
+                                let mut expr_list = vec![ExprData::Identifier("append".to_string()).to_expr()];
+                                expr_list.extend(iter);
+                                ExprData::List(expr_list.into_iter()).to_expr()
+                            }
+                    },
+                    Some(expr) => {
+                        let mut expr_data = vec![ExprData::Identifier("list".to_string()).to_expr()];
+                        let mut inner_list = vec![ExprData::Identifier("append".to_string()).to_expr()];
+                        inner_list.push(apply_quasiquote_list(expr, depth));
+                        if iter.clone().peekable().peek().is_some() {
+                            inner_list.push(apply_quasiquote(ExprData::List(iter).to_expr(), depth));
+                        } else {
+                            inner_list.push(apply_quasiquote(ExprData::Nil.to_expr(), depth));
+                        }
+                        expr_data.push(ExprData::List(inner_list.into_iter()).to_expr());
+                        ExprData::List(expr_data.into_iter()).to_expr()
+                    },
+                    None => panic!("Unexpected end to list while applying quasiquoted list")
+                }
+            },
+            expr => ExprData::List(vec![expr.to_expr()].into_iter()).to_expr().quoted(),
         }
     }
 
@@ -402,7 +531,7 @@ pub fn quasiquote(_accumulator: &mut Option<Expr>, frame: Option<StackFrame>, _s
                          env,
                          rib: _ }) =>  {
             if let (Some(expr), None) = (iter.next(), iter.next()) {
-                let quasiquoted_expr = apply_quasiquote(expr);
+                let quasiquoted_expr = apply_quasiquote(expr, 0);
                 Some(StackFrame::new(quasiquoted_expr, env.clone(), vec![]))
             } else {
                 panic!("Error: Invalid arity to quasiquote. Quasiquote takes only one argument")
@@ -433,6 +562,8 @@ pub fn default_env() -> Env {
             ("=".to_string(), ExprData::Function("=".to_string(), eq).to_expr()),
 
             ("cons".to_string(), ExprData::Function("cons".to_string(), cons).to_expr()),
+            ("first".to_string(), ExprData::Function("first".to_string(), first).to_expr()),
+            ("rest".to_string(), ExprData::Function("rest".to_string(), rest).to_expr()),
             ("list".to_string(), ExprData::Function("list".to_string(), list_impl).to_expr()),
             ("append".to_string(), ExprData::Function("append".to_string(), append_impl).to_expr()),
 

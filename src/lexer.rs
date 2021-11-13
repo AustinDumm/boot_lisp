@@ -55,6 +55,7 @@ pub enum TokenType {
     Quote,
     Quasiquote,
     Unquote,
+    UnquoteSplicing,
 }
 
 impl TokenType {
@@ -207,8 +208,13 @@ pub fn lex(program: String) -> Result<Vec<Token>, BootLispError> {
                 stream.next();
             }
             ',' => {
-                token_list.push(TokenType::Unquote.to_token());
                 stream.next();
+                if stream.peek() == Some(&'@') {
+                    stream.next();
+                    token_list.push(TokenType::UnquoteSplicing.to_token());
+                } else {
+                    token_list.push(TokenType::Unquote.to_token());
+                }
             }
             '#' => {
                 token_list.push(lex_octothorpe(&mut stream)?);
