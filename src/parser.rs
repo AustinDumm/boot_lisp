@@ -292,8 +292,13 @@ where I: Iterator<Item = &'a Token> {
                         list_items.append(&mut collected);
                         return Ok(ExprData::DottedList(list_items.into_iter(), end).to_expr())
                     },
-                    _ =>
-                        return Ok(ExprData::DottedList(list_items.into_iter(), Box::new(final_element)).to_expr()),
+                    _ => {
+                        if Some(Token { token_type: TokenType::CloseBrace }).as_ref() != token_stream.next() {
+                            panic!("Dotted item must be last in list")
+                        }
+
+                        return Ok(ExprData::DottedList(list_items.into_iter(), Box::new(final_element)).to_expr())
+                    }
                 }
             },
             _ => {
