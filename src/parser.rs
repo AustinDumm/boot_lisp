@@ -351,7 +351,8 @@ mod tests {
 
     #[test]
     fn parses_quote_tokens() {
-        assert_eq!(Ok(ExprData::Quote(Box::new(Expr::form_list(vec![ExprData::Integer(1), ExprData::Integer(2)]))).to_expr()),
+        assert_eq!(Ok(ExprData::List(vec![ExprData::Identifier("quote".to_string()).to_expr(),
+                                          Expr::form_list(vec![ExprData::Integer(1), ExprData::Integer(2)])].into_iter()).to_expr()),
                    parse(vec![TokenType::Quote.to_token(),
                               TokenType::OpenBrace.to_token(),
                               TokenType::Integer(1).to_token(),

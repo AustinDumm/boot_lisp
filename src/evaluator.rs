@@ -208,6 +208,7 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::default_env;
 
     #[test]
     fn evaluates_single_integer() {
@@ -276,8 +277,9 @@ mod tests {
     #[test]
     fn evaluates_quoted_expr() {
         assert_eq!(
-            eval(ExprData::Quote(Box::new(Expr::form_list(vec![ExprData::Integer(5), ExprData::Integer(8)]))).to_expr(),
-                 Env::new()).expect("Failed to evaluate"),
+            eval(Expr::form_list(vec![ExprData::Identifier("quote".to_string()),
+                                      ExprData::List(vec![ExprData::Integer(5).to_expr(), ExprData::Integer(8).to_expr()].into_iter())]),
+                 default_env::default_env()).expect("Failed to evaluate"),
             Expr::form_list(vec![ExprData::Integer(5), ExprData::Integer(8)]));
     }
 
