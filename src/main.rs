@@ -38,10 +38,11 @@ fn clap_args() -> ArgMatches {
 
 fn main() {
     let matches = clap_args();
+    let env = default_env::default_env();
     let eval_pipeline = 
         |input_string: String| -> Result<Expr, BootLispError> {
             evaluator::eval(parser::parse(lexer::lex(input_string)?)?,
-                            default_env::default_env())
+                            env.clone())
         };
 
     match matches.value_of("file") {
