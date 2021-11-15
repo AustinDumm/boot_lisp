@@ -15,12 +15,11 @@ use crate::env::{
     Env,
 };
 
-
-fn eval_arguments_and_apply<F>(accumulator: &mut Option<Expr>,
-                               frame: Option<StackFrame>,
-                               stack: &mut CallStack,
-                               application: F) -> Option<StackFrame>
-where F: FnOnce(IntoIter<Expr>) -> Expr {
+fn eval_arguments<F>(accumulator: &mut Option<Expr>,
+                     frame: Option<StackFrame>,
+                     stack: &mut CallStack,
+                     return_fn: F) -> Option<StackFrame>
+where F: FnOnce(&mut Option<Expr>, IntoIter<Expr>, &mut CallStack) -> Option<StackFrame> {
     if let Some(frame) = frame {
         if let Expr { expr_data: ExprData::List(mut list) } = frame.expr {
             if let Some(next_expr) = list.next() {
@@ -35,8 +34,7 @@ where F: FnOnce(IntoIter<Expr>) -> Expr {
                 let mut iter = frame.rib.into_iter();
                 iter.next();
 
-                *accumulator = Some(application(iter));
-                stack.pop_frame()
+                return_fn(accumulator, iter, stack)
             }
         } else {
             panic!("Non-list expr type given to Function evaluation")
@@ -44,6 +42,20 @@ where F: FnOnce(IntoIter<Expr>) -> Expr {
     } else {
         panic!("No frame found for arguments evaluation")
     }
+}
+
+fn eval_arguments_and_apply<F>(accumulator: &mut Option<Expr>,
+                               frame: Option<StackFrame>,
+                               stack: &mut CallStack,
+                               application: F) -> Option<StackFrame>
+where F: FnOnce(IntoIter<Expr>) -> Expr {
+    eval_arguments(accumulator,
+                   frame,
+                   stack,
+                   |accumulator, iter, stack| {
+                       *accumulator = Some(application(iter));
+                       stack.pop_frame()
+                   })
 }
 
 //=============== Arithmetic Functions ===============
@@ -624,13 +636,31 @@ fn begin(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut 
                              frame,
                              stack,
                              |iter| {
-                                let mut iter = iter.peekable();
-                                let mut value = iter.next();
-                                while iter.peek().is_some() {
-                                    value = iter.next();
-                                }
-                                value.expect("Unexpected end to list found when evaluating begin")
+                                 let mut iter = iter.peekable();
+                                 let mut value = iter.next();
+                                 while iter.peek().is_some() {
+                                     value = iter.next();
+                                 }
+                                 value.expect("Unexpected end to list found when evaluating begin")
                              })
+}
+
+fn eval(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    let env = frame.as_ref().unwrap().env.clone();
+    eval_arguments(accumulator,
+                   frame,
+                   stack,
+                   |_, mut iter, _| {
+                       if let (Some(expr), None) = (iter.next(), iter.next()) {
+                           Some(StackFrame {
+                                    expr,
+                                    env, 
+                                    rib: vec![]
+                           })
+                       } else {
+                           panic!("Incorrect number of arguments provided to eval. Expected 1")
+                       }
+                   })
 }
 
 //=============== Environment Creation ===============
@@ -662,6 +692,7 @@ pub fn default_env() -> Env {
             ("set!".to_string(), ExprData::Function("set!".to_string(), set).to_expr()),
 
             ("begin".to_string(), ExprData::Function("begin".to_string(), begin).to_expr()),
+            ("eval".to_string(), ExprData::Function("eval".to_string(), eval).to_expr()),
 
             ("lambda".to_string(), ExprData::Function("lambda".to_string(), build_lambda).to_expr()),
             ("if".to_string(), ExprData::Function("if".to_string(), if_impl).to_expr()),
