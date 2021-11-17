@@ -194,6 +194,7 @@ impl Expr {
 }
 
 type ParseResult = Result<Expr, BootLispError>;
+type ParseResults = Result<Vec<Expr>, BootLispError>;
 
 /// Convert a flat list of tokens into an Abstract Syntax Tree structure of expressions. 
 ///
@@ -221,9 +222,20 @@ type ParseResult = Result<Expr, BootLispError>;
 ///                                    Expr::form_list(vec![ExprData::ident_from("ifier"),
 ///                                                         ExprData::Integer(592)]).expr_data])));
 /// ```
-pub fn parse(token_list: Vec<Token>) -> ParseResult {
+pub fn parse(token_list: Vec<Token>) -> ParseResults {
     let mut token_stream = token_list.iter().peekable();
-    parse_item(&mut token_stream)
+    parse_all_items(&mut token_stream)
+}
+
+pub fn parse_all_items<'a, I>(token_stream: &mut Peekable<I>) -> ParseResults
+where I: Iterator<Item = &'a Token> {
+    let mut expr_list: Vec<Expr> = vec![];
+    while token_stream.peek().is_some() {
+        let item = parse_item(token_stream)?;
+        expr_list.push(item);
+    }
+
+    Ok(expr_list)
 }
 
 /// Convert a peekable iterator of tokens into an Abstract Syntax Tree structure of expressions
