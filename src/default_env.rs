@@ -511,7 +511,8 @@ fn first(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut 
                              |mut iter| {
                                  if let (Some(expr), None) = (iter.next(), iter.next()) {
                                      match expr.expr_data {
-                                         ExprData::List(mut iter) => {
+                                         ExprData::List(mut iter) |
+                                             ExprData::DottedList(mut iter, _) => {
                                              iter.next().expect("No item found in list while evaluating 'first'")
                                          },
                                          _ => panic!("'first' must be given list")
@@ -533,6 +534,10 @@ fn rest(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut C
                                              iter.next();
                                              ExprData::List(iter).to_expr()
                                          },
+                                         ExprData::DottedList(mut iter, rest) => {
+                                             iter.next();
+                                             ExprData::DottedList(iter, rest).to_expr()
+                                         }
                                          _ => panic!("'rest' must be given a list")
                                      }
                                  } else {
@@ -944,9 +949,9 @@ fn apply(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut 
                            }
                        }
 
-                       Some(StackFrame { expr: ExprData::List(new_list.into_iter()).to_expr(),
+                       Some(StackFrame { expr: ExprData::List(vec![].into_iter()).to_expr(),
                                          env,
-                                         rib: vec![] })
+                                         rib: new_list })
                    })
 }
 
