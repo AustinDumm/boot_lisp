@@ -119,6 +119,7 @@ where F: Fn(&Expr, &Expr) -> bool {
 }
 
 //=============== Arithmetic Functions ===============
+
 fn add(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
     eval_arguments_and_apply(accumulator,
                              frame,
@@ -259,6 +260,86 @@ fn bit_not(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mu
                                          !integer
                                      } else {
                                          panic!("bitwise not must take single, integer argument")
+                                     }
+                                 ).to_expr()
+                             })
+}
+
+//=============== Logical Operators ===============
+
+fn and(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_apply(accumulator,
+                             frame,
+                             stack,
+                             |iter| {
+                                 let booleans = iter.map(|expr| {
+                                     match expr.expr_data {
+                                         ExprData::Bool(boolean) => boolean,
+                                         _ => panic!("and must take boolean"),
+                                     }
+                                 });
+
+                                 for boolean in booleans {
+                                     if boolean {
+                                         continue
+                                     } else {
+                                         return ExprData::Bool(false).to_expr()
+                                     }
+                                 }
+
+                                 return ExprData::Bool(true).to_expr()
+                             })
+}
+
+fn or(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_apply(accumulator,
+                             frame,
+                             stack,
+                             |iter| {
+                                 let booleans = iter.map(|expr| {
+                                     match expr.expr_data {
+                                         ExprData::Bool(boolean) => boolean,
+                                         _ => panic!("or must take boolean"),
+                                     }
+                                 });
+
+                                 for boolean in booleans {
+                                     if boolean {
+                                         return ExprData::Bool(true).to_expr()
+                                     } else {
+                                         continue
+                                     }
+                                 }
+
+                                 return ExprData::Bool(false).to_expr()
+                             })
+}
+
+fn xor(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_apply(accumulator,
+                             frame,
+                             stack,
+                             |mut iter| {
+                                 if let (Some(Expr { expr_data: ExprData::Bool(first) }),
+                                         Some(Expr { expr_data: ExprData::Bool(second) }),
+                                         None) = (iter.next(), iter.next(), iter.next()) {
+                                     ExprData::Bool((first || second) && !(first && second)).to_expr()
+                                 } else {
+                                     panic!("xor must be given two boolean arguments")
+                                 }
+                             })
+}
+
+fn not(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_apply(accumulator,
+                             frame,
+                             stack,
+                             |mut iter| {
+                                 ExprData::Bool(
+                                     if let (Some(Expr { expr_data: ExprData::Bool(boolean) }), None) = (iter.next(), iter.next()) {
+                                         !boolean
+                                     } else {
+                                         panic!("not must take single, boolean argument")
                                      }
                                  ).to_expr()
                              })
@@ -764,6 +845,12 @@ pub fn default_env() -> Env {
             ("bit-or".to_string(), ExprData::Function("bit-or".to_string(), bit_or).to_expr()),
             ("bit-xor".to_string(), ExprData::Function("bit-xor".to_string(), bit_xor).to_expr()),
             ("bit-not".to_string(), ExprData::Function("bit-not".to_string(), bit_not).to_expr()),
+
+            ("and".to_string(), ExprData::Function("and".to_string(), and).to_expr()),
+            ("or".to_string(), ExprData::Function("or".to_string(), or).to_expr()),
+            ("xor".to_string(), ExprData::Function("xor".to_string(), xor).to_expr()),
+            ("not".to_string(), ExprData::Function("not".to_string(), not).to_expr()),
+
 
             ("<".to_string(), ExprData::Function("<".to_string(), lt).to_expr()),
             (">".to_string(), ExprData::Function(">".to_string(), gt).to_expr()),
