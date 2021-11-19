@@ -36,7 +36,14 @@ fn clap_args() -> ArgMatches {
         .arg(Arg::new("file")
              .short('f')
              .long("file")
-             .takes_value(true)).get_matches()
+             .takes_value(true))
+        .arg(Arg::new("libraries")
+             .short('l')
+             .long("libraries")
+             .takes_value(true)
+             .multiple_values(true)
+             .use_delimiter(true))
+        .get_matches()
 }
 
 fn main() {
@@ -51,6 +58,19 @@ fn main() {
                                     env.clone())
                 }).collect()
         };
+
+    match matches.values_of("libraries") {
+        None => (),
+        Some(library_files) => {
+            for library_file in library_files {
+                let library: String = fs::read_to_string(library_file)
+                                            .expect("Failed to open library file")
+                                            .parse()
+                                            .expect("Failed to parse library file");
+                eval_pipeline(library).expect("Failure loading library");
+            }
+        }
+    }
 
     match matches.value_of("file") {
         None => {

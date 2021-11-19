@@ -1,0 +1,5 @@
+(macro define
+    (lambda (binding . value)
+        (if (list? binding)
+            `(create! ,(first binding) (lambda ,(rest binding) (begin ,@value)))
+            `(create! ,binding ,value))))

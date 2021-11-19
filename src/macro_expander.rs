@@ -28,7 +28,7 @@ fn expand_macro(expr: Expr, evaluation_env: Env, macro_env: &mut Env) -> Expr {
                     if macro_env.get(&identifier).is_some() => {
                         let macro_lambda = macro_env.get(&identifier).unwrap();
                         let mut macro_list = vec![macro_lambda];
-                        macro_list.extend(iter);
+                        macro_list.extend(iter.map(|expr| { expr.quoted() }));
                         let macro_application = ExprData::List(macro_list.into_iter()).to_expr();
                         let expanded_macro = evaluator::eval(macro_application, evaluation_env.clone()).unwrap();
                         expand_macro(expanded_macro, evaluation_env, macro_env)
