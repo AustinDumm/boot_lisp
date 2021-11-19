@@ -94,6 +94,30 @@ where F: FnOnce(IntoIter<Expr>) -> Expr {
                              })
 }
 
+fn eval_arguments_and_compare<F>(accumulator: &mut Option<Expr>,
+                                 frame: Option<StackFrame>,
+                                 stack: &mut CallStack,
+                                 cmp: F) -> Option<StackFrame>
+where F: Fn(&Expr, &Expr) -> bool {
+    eval_arguments_and_apply(accumulator,
+                             frame,
+                             stack,
+                             |mut iter| {
+                                 if let Some(mut current_expr) = iter.next() {
+                                     while let Some(next_expr) = iter.next() {
+                                         if cmp(&current_expr, &next_expr) {
+                                             current_expr = next_expr
+                                         } else {
+                                             return ExprData::Bool(false).to_expr()
+                                         }
+                                     }
+                                     ExprData::Bool(true).to_expr()
+                                 } else {
+                                     panic!("Mismatched arity. Minimum of 1 argument must be given to comparison function")
+                                 }
+                             })
+}
+
 //=============== Arithmetic Functions ===============
 fn add(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
     eval_arguments_and_apply(accumulator,
@@ -175,32 +199,72 @@ fn modulo(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut
                              })
 }
 
+//=============== Bitwise Functions ===============
 
-//=============== Comparison Functions ===============
+fn bit_and(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_apply(accumulator,
+                             frame,
+                             stack,
+                             |iter| {
+                                 ExprData::Integer(
+                                     iter.map(|expr| {
+                                         match expr.expr_data {
+                                             ExprData::Integer(integer) => integer,
+                                             _ => panic!("bitwise and must take integer"),
+                                         }
+                                     }).reduce(|a, b| { a & b }).unwrap()
+                                 ).to_expr()
+                             })
+}
 
-fn eval_arguments_and_compare<F>(accumulator: &mut Option<Expr>,
-                                 frame: Option<StackFrame>,
-                                 stack: &mut CallStack,
-                                 cmp: F) -> Option<StackFrame>
-where F: Fn(&Expr, &Expr) -> bool {
+fn bit_or(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_apply(accumulator,
+                             frame,
+                             stack,
+                             |iter| {
+                                 ExprData::Integer(
+                                     iter.map(|expr| {
+                                         match expr.expr_data {
+                                             ExprData::Integer(integer) => integer,
+                                             _ => panic!("bitwise and must take integer"),
+                                         }
+                                     }).reduce(|a, b| { a | b }).unwrap()
+                                 ).to_expr()
+                             })
+}
+
+fn bit_xor(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_apply(accumulator,
+                             frame,
+                             stack,
+                             |iter| {
+                                 ExprData::Integer(
+                                     iter.map(|expr| {
+                                         match expr.expr_data {
+                                             ExprData::Integer(integer) => integer,
+                                             _ => panic!("bitwise and must take integer"),
+                                         }
+                                     }).reduce(|a, b| { a ^ b }).unwrap()
+                                 ).to_expr()
+                             })
+}
+
+fn bit_not(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
     eval_arguments_and_apply(accumulator,
                              frame,
                              stack,
                              |mut iter| {
-                                 if let Some(mut current_expr) = iter.next() {
-                                     while let Some(next_expr) = iter.next() {
-                                         if cmp(&current_expr, &next_expr) {
-                                             current_expr = next_expr
-                                         } else {
-                                             return ExprData::Bool(false).to_expr()
-                                         }
+                                 ExprData::Integer(
+                                     if let (Some(Expr { expr_data: ExprData::Integer(integer) }), None) = (iter.next(), iter.next()) {
+                                         !integer
+                                     } else {
+                                         panic!("bitwise not must take single, integer argument")
                                      }
-                                     ExprData::Bool(true).to_expr()
-                                 } else {
-                                     panic!("Mismatched arity. Minimum of 1 argument must be given to comparison function")
-                                 }
+                                 ).to_expr()
                              })
 }
+
+//=============== Comparison Functions ===============
 
 fn lt(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
     eval_arguments_and_compare(accumulator,
@@ -695,6 +759,11 @@ pub fn default_env() -> Env {
             ("*".to_string(), ExprData::Function("*".to_string(), mul).to_expr()),
             ("/".to_string(), ExprData::Function("/".to_string(), div).to_expr()),
             ("%".to_string(), ExprData::Function("%".to_string(), modulo).to_expr()),
+
+            ("bit-and".to_string(), ExprData::Function("bit-and".to_string(), bit_and).to_expr()),
+            ("bit-or".to_string(), ExprData::Function("bit-or".to_string(), bit_or).to_expr()),
+            ("bit-xor".to_string(), ExprData::Function("bit-xor".to_string(), bit_xor).to_expr()),
+            ("bit-not".to_string(), ExprData::Function("bit-not".to_string(), bit_not).to_expr()),
 
             ("<".to_string(), ExprData::Function("<".to_string(), lt).to_expr()),
             (">".to_string(), ExprData::Function(">".to_string(), gt).to_expr()),
