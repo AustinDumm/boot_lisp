@@ -834,6 +834,23 @@ fn is_list(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mu
                              })
 }
 
+fn is_nil(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_apply(accumulator,
+                             frame,
+                             stack,
+                             |mut iter| {
+                                 if let (Some(expr), None) = (iter.next(), iter.next()) {
+                                     match expr.expr_data {
+                                         ExprData::List(mut iter) =>
+                                             ExprData::Bool(iter.next().is_none()).to_expr(),
+                                         _ => ExprData::Bool(false).to_expr(),
+                                     }
+                                 } else {
+                                     panic!("nil? expects only one argument")
+                                 }
+                             })
+}
+
 //=============== Environment Manipulation ===============
 
 fn set(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
@@ -907,6 +924,32 @@ fn eval(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut C
                    })
 }
 
+fn apply(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    let env = frame.as_ref().unwrap().env.clone();
+    eval_arguments(accumulator,
+                   frame,
+                   stack,
+                   |_, iter, _| {
+                       let mut new_list = vec![];
+                       let mut iter = iter.peekable();
+                       while let Some(expr) = iter.next() {
+                           if iter.peek().is_none() {
+                               if let ExprData::List(final_list) = expr.expr_data {
+                                   new_list.extend(final_list)
+                               } else {
+                                   panic!("apply must be given a list as its final argument")
+                               }
+                           } else {
+                               new_list.push(expr)
+                           }
+                       }
+
+                       Some(StackFrame { expr: ExprData::List(new_list.into_iter()).to_expr(),
+                                         env,
+                                         rib: vec![] })
+                   })
+}
+
 fn exit(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
     eval_arguments_and_apply(accumulator,
                              frame,
@@ -962,6 +1005,8 @@ pub fn default_env() -> Env {
             ("function?".to_string(), ExprData::Function("function?".to_string(), is_function).to_expr()),
             ("applicable?".to_string(), ExprData::Function("applicable?".to_string(), is_applicable).to_expr()),
             ("list?".to_string(), ExprData::Function("list?".to_string(), is_list).to_expr()),
+            ("nil?".to_string(), ExprData::Function("nil?".to_string(), is_nil).to_expr()),
+            ("empty?".to_string(), ExprData::Function("empty?".to_string(), is_nil).to_expr()),
 
             ("quote".to_string(), ExprData::Function("quote".to_string(), quote).to_expr()),
             ("quasiquote".to_string(), ExprData::Function("quasiquote".to_string(), quasiquote).to_expr()),
@@ -972,10 +1017,13 @@ pub fn default_env() -> Env {
 
             ("begin".to_string(), ExprData::Function("begin".to_string(), begin).to_expr()),
             ("eval".to_string(), ExprData::Function("eval".to_string(), eval).to_expr()),
+            ("apply".to_string(), ExprData::Function("apply".to_string(), apply).to_expr()),
             ("exit".to_string(), ExprData::Function("exit".to_string(), exit).to_expr()),
 
             ("lambda".to_string(), ExprData::Function("lambda".to_string(), build_lambda).to_expr()),
             ("if".to_string(), ExprData::Function("if".to_string(), if_impl).to_expr()),
+
+            ("nil".to_string(), ExprData::nil().to_expr()),
         ].into_iter().collect()
     )
 }
