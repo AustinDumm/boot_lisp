@@ -742,6 +742,124 @@ fn unquote_splicing(_accumulator: &mut Option<Expr>, _frame: Option<StackFrame>,
     panic!("Unexpected unquote-splicing found outside of quasiquoted list expression")
 }
 
+//=============== Type Checking ===============
+
+fn is_bool(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_apply(accumulator,
+                             frame,
+                             stack,
+                             |mut iter| {
+                                 if let (Some(expr), None) = (iter.next(), iter.next()) {
+                                     match expr.expr_data {
+                                         ExprData::Bool(_) => ExprData::Bool(true),
+                                         _ => ExprData::Bool(false),
+                                     }.to_expr()
+                                 } else {
+                                     panic!("is_bool expects only one argument")
+                                 }
+                             })
+}
+
+fn is_integer(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_apply(accumulator,
+                             frame,
+                             stack,
+                             |mut iter| {
+                                 if let (Some(expr), None) = (iter.next(), iter.next()) {
+                                     match expr.expr_data {
+                                         ExprData::Integer(_) => ExprData::Bool(true),
+                                         _ => ExprData::Bool(false),
+                                     }.to_expr()
+                                 } else {
+                                     panic!("is_integer expects only one argument")
+                                 }
+                             })
+}
+
+fn is_identifier(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_apply(accumulator,
+                             frame,
+                             stack,
+                             |mut iter| {
+                                 if let (Some(expr), None) = (iter.next(), iter.next()) {
+                                     match expr.expr_data {
+                                         ExprData::Identifier(_) => ExprData::Bool(true),
+                                         _ => ExprData::Bool(false),
+                                     }.to_expr()
+                                 } else {
+                                     panic!("is_identifier expects only one argument")
+                                 }
+                             })
+}
+
+
+fn is_lambda(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_apply(accumulator,
+                             frame,
+                             stack,
+                             |mut iter| {
+                                 if let (Some(expr), None) = (iter.next(), iter.next()) {
+                                     match expr.expr_data {
+                                         ExprData::Lambda(_,_,_) => ExprData::Bool(true),
+                                         _ => ExprData::Bool(false),
+                                     }.to_expr()
+                                 } else {
+                                     panic!("is_lambda expects only one argument")
+                                 }
+                             })
+}
+
+fn is_function(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_apply(accumulator,
+                             frame,
+                             stack,
+                             |mut iter| {
+                                 if let (Some(expr), None) = (iter.next(), iter.next()) {
+                                     match expr.expr_data {
+                                         ExprData::Function(_,_) => ExprData::Bool(true),
+                                         _ => ExprData::Bool(false),
+                                     }.to_expr()
+                                 } else {
+                                     panic!("is_list expects only one argument")
+                                 }
+                             })
+}
+
+fn is_applicable(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_apply(accumulator,
+                             frame,
+                             stack,
+                             |mut iter| {
+                                 if let (Some(expr), None) = (iter.next(), iter.next()) {
+                                     match expr.expr_data {
+                                         ExprData::Lambda(_,_,_) |
+                                         ExprData::Function(_,_) => ExprData::Bool(true),
+                                         _ => ExprData::Bool(false),
+                                     }.to_expr()
+                                 } else {
+                                     panic!("is_list expects only one argument")
+                                 }
+                             })
+}
+
+
+fn is_list(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_apply(accumulator,
+                             frame,
+                             stack,
+                             |mut iter| {
+                                 if let (Some(expr), None) = (iter.next(), iter.next()) {
+                                     match expr.expr_data {
+                                         ExprData::List(_) |
+                                         ExprData::DottedList(_,_) => ExprData::Bool(true),
+                                         _ => ExprData::Bool(false),
+                                     }.to_expr()
+                                 } else {
+                                     panic!("is_list expects only one argument")
+                                 }
+                             })
+}
+
 //=============== Environment Manipulation ===============
 
 fn set(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
@@ -851,7 +969,6 @@ pub fn default_env() -> Env {
             ("xor".to_string(), ExprData::Function("xor".to_string(), xor).to_expr()),
             ("not".to_string(), ExprData::Function("not".to_string(), not).to_expr()),
 
-
             ("<".to_string(), ExprData::Function("<".to_string(), lt).to_expr()),
             (">".to_string(), ExprData::Function(">".to_string(), gt).to_expr()),
             ("<=".to_string(), ExprData::Function("<=".to_string(), leq).to_expr()),
@@ -863,6 +980,14 @@ pub fn default_env() -> Env {
             ("rest".to_string(), ExprData::Function("rest".to_string(), rest).to_expr()),
             ("list".to_string(), ExprData::Function("list".to_string(), list_impl).to_expr()),
             ("append".to_string(), ExprData::Function("append".to_string(), append_impl).to_expr()),
+
+            ("bool?".to_string(), ExprData::Function("bool?".to_string(), is_bool).to_expr()),
+            ("integer?".to_string(), ExprData::Function("integer?".to_string(), is_integer).to_expr()),
+            ("identifier?".to_string(), ExprData::Function("identifier?".to_string(), is_identifier).to_expr()),
+            ("lambda?".to_string(), ExprData::Function("lambda?".to_string(), is_lambda).to_expr()),
+            ("function?".to_string(), ExprData::Function("function?".to_string(), is_function).to_expr()),
+            ("applicable?".to_string(), ExprData::Function("applicable?".to_string(), is_applicable).to_expr()),
+            ("list?".to_string(), ExprData::Function("list?".to_string(), is_list).to_expr()),
 
             ("quote".to_string(), ExprData::Function("quote".to_string(), quote).to_expr()),
             ("quasiquote".to_string(), ExprData::Function("quasiquote".to_string(), quasiquote).to_expr()),
