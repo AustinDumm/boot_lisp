@@ -56,8 +56,6 @@ use crate::default_env;
 /// - Dotted List
 ///     - A representation of an S-Expression list where the final right value is a
 ///     non-S-Expression.
-/// - Nil
-///     - A representation of the end of a well-formed S-Expression list.
 #[derive(Clone)]
 pub enum ExprData {
     Bool(bool),
@@ -67,7 +65,6 @@ pub enum ExprData {
     Function(String, fn(&mut Option<Expr>, Option<StackFrame>, &mut CallStack) -> Option<StackFrame>),
     List(IntoIter<Expr>),
     DottedList(IntoIter<Expr>, Box<Expr>),
-    Nil,
 }
 
 impl std::fmt::Debug for ExprData {
@@ -105,7 +102,6 @@ impl std::fmt::Display for ExprData {
                 }
                 write!(f, ". {})", e)
             },
-            Nil => write!(f, "Nil"),
         }
     }
 }
@@ -124,7 +120,6 @@ impl PartialEq for ExprData {
             (ExprData::DottedList(this_list, this_last), ExprData::DottedList(other_list, other_last))
                 => this_list.clone().eq(other_list.clone()) &&
                    *this_last == *other_last,
-            (ExprData::Nil, ExprData::Nil) => true,
             (_, _) => false,
         }
     }
@@ -150,6 +145,10 @@ impl ExprData {
     /// ```
     pub fn ident_from(ident: &str) -> ExprData {
         ExprData::Identifier(String::from(ident))
+    }
+
+    pub fn nil() -> ExprData {
+        ExprData::List(vec![].into_iter())
     }
 }
 
@@ -283,7 +282,7 @@ where I: Iterator<Item = &'a Token> {
             TokenType::CloseBrace => {
                 token_stream.next();
                 if list_items.len() == 0 {
-                    return Ok(ExprData::Nil.to_expr())
+                    return Ok(ExprData::List(vec![].into_iter()).to_expr())
                 } else {
                     return Ok(ExprData::List(list_items.into_iter()).to_expr())
                 }
@@ -292,8 +291,6 @@ where I: Iterator<Item = &'a Token> {
                 token_stream.next();
                 let final_element = parse_item(token_stream)?;
                 match final_element.expr_data {
-                    ExprData::Nil =>
-                        return Ok(ExprData::List(list_items.into_iter()).to_expr()),
                     ExprData::List(iter) => {
                         let mut collected: Vec<Expr> = iter.collect();
                         list_items.append(&mut collected);

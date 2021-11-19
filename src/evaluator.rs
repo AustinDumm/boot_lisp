@@ -59,13 +59,6 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
                 }
             ) |
             Some(
-                StackFrame { 
-                    expr: Expr { expr_data: ExprData::Nil },
-                    env: _,
-                    rib: _
-                }
-            ) |
-            Some(
                 StackFrame {
                     expr: Expr { expr_data: ExprData::Lambda(_, _, _) },
                     env: _,
@@ -114,11 +107,11 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
                     rib,
                 }
             ) => {
-                if end.expr_data == ExprData::Nil {
+                if end.expr_data == ExprData::List(vec![].into_iter()) {
                     active_frame = Some(StackFrame {
                                             expr: ExprData::List(list).to_expr(),
-                                            env: env,
-                                            rib: rib
+                                            env,
+                                            rib
                     });
                 } else {
                     return Err(BootLispError::new(ErrorType::Eval,

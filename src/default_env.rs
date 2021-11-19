@@ -496,7 +496,6 @@ fn cons(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut C
                                              array.extend(rest);
                                              ExprData::List(array.into_iter()).to_expr()
                                          },
-                                         ExprData::Nil => ExprData::List(vec![first].into_iter()).to_expr(),
                                          _ => ExprData::DottedList(vec![first].into_iter(), Box::new(rest)).to_expr(),
                                      }
                                  } else {
@@ -532,11 +531,7 @@ fn rest(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut C
                                      match expr.expr_data {
                                          ExprData::List(mut iter) => {
                                              iter.next();
-                                             if iter.clone().peekable().peek().is_none() {
-                                                 ExprData::Nil.to_expr()
-                                             } else {
-                                                 ExprData::List(iter).to_expr()
-                                             }
+                                             ExprData::List(iter).to_expr()
                                          },
                                          _ => panic!("'rest' must be given a list")
                                      }
@@ -564,7 +559,6 @@ fn append_impl(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack:
             if iter.peek().is_none() {
                 match next_expr.expr_data {
                     ExprData::List(_) => (),
-                    ExprData::Nil => return ExprData::List(append_vec.into_iter()).to_expr(),
                     ExprData::DottedList(list, last) => {
                         append_vec.extend(list);
                         return ExprData::DottedList(append_vec.into_iter(), last).to_expr()
@@ -620,11 +614,7 @@ pub fn quasiquote(_accumulator: &mut Option<Expr>, frame: Option<StackFrame>, _s
                         if identifier.as_str() == "quasiquote" => {
                             let mut expr_list = vec![ExprData::Identifier("cons".to_string()).to_expr()];
                             expr_list.push(ExprData::Identifier("quasiquote".to_string()).to_expr().quoted());
-                            if iter.clone().peekable().peek().is_some() {
-                                expr_list.push(apply_quasiquote(ExprData::List(iter).to_expr(), depth + 1));
-                            } else {
-                                expr_list.push(apply_quasiquote(ExprData::Nil.to_expr(), depth + 1));
-                            }
+                            expr_list.push(apply_quasiquote(ExprData::List(iter).to_expr(), depth + 1));
                             ExprData::List(expr_list.into_iter()).to_expr()
                     },
                     Some(Expr { expr_data: ExprData::Identifier(identifier) })
@@ -632,11 +622,7 @@ pub fn quasiquote(_accumulator: &mut Option<Expr>, frame: Option<StackFrame>, _s
                             if depth > 0 {
                                 let mut expr_list = vec![ExprData::Identifier("cons".to_string()).to_expr()];
                                 expr_list.push(ExprData::Identifier(identifier).to_expr().quoted());
-                                if iter.clone().peekable().peek().is_some() {
-                                    expr_list.push(apply_quasiquote(ExprData::List(iter).to_expr(), depth - 1));
-                                } else {
-                                    expr_list.push(apply_quasiquote(ExprData::Nil.to_expr(), depth - 1));
-                                }
+                                expr_list.push(apply_quasiquote(ExprData::List(iter).to_expr(), depth - 1));
                                 ExprData::List(expr_list.into_iter()).to_expr()
                             } else if let (Some(next), None, true) = (iter.next(), iter.next(), identifier.as_str() == "unquote") {
                                 next
@@ -668,11 +654,7 @@ pub fn quasiquote(_accumulator: &mut Option<Expr>, frame: Option<StackFrame>, _s
                             let mut expr_list = vec![ExprData::Identifier("list".to_string()).to_expr()];
                             let mut inner_list = vec![ExprData::Identifier("cons".to_string()).to_expr(),
                                                       ExprData::Identifier("quasiquote".to_string()).to_expr().quoted()];
-                            if iter.clone().peekable().peek().is_some() {
-                                inner_list.push(apply_quasiquote(ExprData::List(iter).to_expr(), depth + 1));
-                            } else {
-                                inner_list.push(apply_quasiquote(ExprData::Nil.to_expr(), depth + 1));
-                            }
+                            inner_list.push(apply_quasiquote(ExprData::List(iter).to_expr(), depth + 1));
                             expr_list.push(ExprData::List(inner_list.into_iter()).to_expr());
                             ExprData::List(expr_list.into_iter()).to_expr()
                     },
@@ -682,11 +664,7 @@ pub fn quasiquote(_accumulator: &mut Option<Expr>, frame: Option<StackFrame>, _s
                                 let mut expr_list = vec![ExprData::Identifier("list".to_string()).to_expr()];
                                 let mut inner_list = vec![ExprData::Identifier("cons".to_string()).to_expr(),
                                                           ExprData::Identifier(identifier).to_expr().quoted()];
-                                if iter.clone().peekable().peek().is_some() {
-                                    inner_list.push(apply_quasiquote(ExprData::List(iter).to_expr(), depth - 1));
-                                } else {
-                                    inner_list.push(apply_quasiquote(ExprData::Nil.to_expr(), depth - 1));
-                                }
+                                inner_list.push(apply_quasiquote(ExprData::List(iter).to_expr(), depth - 1));
                                 expr_list.push(ExprData::List(inner_list.into_iter()).to_expr());
                                 ExprData::List(expr_list.into_iter()).to_expr()
                             } else if identifier.as_str() == "unquote" {
@@ -703,11 +681,7 @@ pub fn quasiquote(_accumulator: &mut Option<Expr>, frame: Option<StackFrame>, _s
                         let mut expr_data = vec![ExprData::Identifier("list".to_string()).to_expr()];
                         let mut inner_list = vec![ExprData::Identifier("append".to_string()).to_expr()];
                         inner_list.push(apply_quasiquote_list(expr, depth));
-                        if iter.clone().peekable().peek().is_some() {
-                            inner_list.push(apply_quasiquote(ExprData::List(iter).to_expr(), depth));
-                        } else {
-                            inner_list.push(apply_quasiquote(ExprData::Nil.to_expr(), depth));
-                        }
+                        inner_list.push(apply_quasiquote(ExprData::List(iter).to_expr(), depth));
                         expr_data.push(ExprData::List(inner_list.into_iter()).to_expr());
                         ExprData::List(expr_data.into_iter()).to_expr()
                     },
