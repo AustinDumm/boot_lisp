@@ -26,6 +26,8 @@ use crate::lexer::BootLispError;
 
 use crate::parser::Expr;
 
+use crate::env::Env;
+
 fn clap_args() -> ArgMatches {
     App::new("boot_lisp")
         .version("1.0")
@@ -40,9 +42,10 @@ fn clap_args() -> ArgMatches {
 fn main() {
     let matches = clap_args();
     let env = default_env::default_env();
-    let eval_pipeline = 
+    let mut macro_env = Env::new();
+    let mut eval_pipeline = 
         |input_string: String| -> Result<Vec<Expr>, BootLispError> {
-            parser::parse(lexer::lex(input_string)?)?.into_iter().map(
+            macro_expander::macro_expand(parser::parse(lexer::lex(input_string)?)?, env.clone(), &mut macro_env).into_iter().map(
                 |expr| {
                     evaluator::eval(expr,
                                     env.clone())

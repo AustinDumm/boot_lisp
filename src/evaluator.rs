@@ -25,7 +25,6 @@ type EvalResult = Result<Expr, BootLispError>;
 /// Evaluates iteratively rather than relying on host language's call stack in order to provide
 /// future support for first-class continuations
 pub fn eval(expr: Expr, env: Env) -> EvalResult {
-    
     let mut call_stack = CallStack::new();
     let mut accumulator: Option<Expr> = None;
     let mut active_frame: Option<StackFrame> = Some(StackFrame::new(expr, env, vec![]));
@@ -95,8 +94,8 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
                     rib: _
                 }
             ) => {
-                if let Some(expr_lock) = env.get(&name) {
-                    accumulator = Some(expr_lock.read().unwrap().clone());
+                if let Some(expr) = env.get(&name) {
+                    accumulator = Some(expr);
                     active_frame = call_stack.pop_frame()
                 } else {
                     return Err(BootLispError::new(ErrorType::Eval,

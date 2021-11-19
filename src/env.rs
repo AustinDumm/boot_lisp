@@ -28,14 +28,28 @@ impl PartialEq for Env {
 /// reference to next environment to handle nested bindings
 #[derive(Debug)]
 pub struct EnvData {
-    dict: HashMap<String, Arc<RwLock<Expr>>>,
-    next_env: Option<Env>,
+    pub dict: RwLock<HashMap<String, Expr>>,
+    pub next_env: Option<Env>,
+}
+
+impl EnvData {
+    fn new() -> EnvData {
+        EnvData { dict: RwLock::new(HashMap::new()), next_env: None }
+    }
+
+    fn containing(map: HashMap<String, Expr>) -> EnvData {
+        EnvData { dict: RwLock::new(map), next_env: None }
+    }
+
+    fn extending(map: HashMap<String, Expr>, env: Env) -> EnvData {
+        EnvData { dict: RwLock::new(map), next_env: Some(env) }
+    }
 }
 
 impl Env {
     /// Creates a new empty Environment with no bindings to any values and no parent environment
     pub fn new() -> Env {
-        Env { env_data: Arc::new(EnvData { dict: HashMap::new(), next_env: None }) }
+        Env { env_data: Arc::new(EnvData::new()) }
     }
 
     /// Creates a new Environment containing bindings from Strings to Expressions as contained in
@@ -48,13 +62,13 @@ impl Env {
     ///            ExprData::Integer(152).to_expr());
     /// ```
     pub fn containing(map: HashMap<String, Expr>) -> Env {
-        let locked_expr_map: HashMap<String, Arc<RwLock<Expr>>> =
+        let locked_expr_map: HashMap<String, Expr> =
             map
                 .into_iter()
                 .map(|tuple| {
-                    (tuple.0, Arc::new(RwLock::new(tuple.1)))
+                    (tuple.0, tuple.1)
                 }).collect();
-        Env { env_data: Arc::new(EnvData { dict: locked_expr_map, next_env: None }) }
+        Env { env_data: Arc::new(EnvData::containing(locked_expr_map)) }
     }
 
     /// Performs lookup of the given identifier name in this environment. If this environment does
@@ -62,10 +76,11 @@ impl Env {
     /// enclosing environment, will then perform lookup in the enclosing environment. If this
     /// environment does not contain a binding of the given identifier name and does not have a
     /// reference to a parent enclosing environment, will return None
-    pub fn get<'a>(&self, identifier_name: &str) -> Option<Arc<RwLock<Expr>>> {
+    pub fn get<'a>(&self, identifier_name: &str) -> Option<Expr> {
         let data_ptr = self.env_data.clone();
-        if data_ptr.dict.contains_key(identifier_name) {
-            let expr = data_ptr.dict.get(identifier_name).unwrap().clone();
+        let dict = data_ptr.dict.read().unwrap();
+        if dict.contains_key(identifier_name) {
+            let expr = dict.get(identifier_name).unwrap().clone();
             Some(expr)
         } else if let Some(next_env) = &data_ptr.next_env {
             next_env.get(identifier_name)
@@ -82,16 +97,24 @@ impl Env {
     /// enclosing environment, will return false to indicate that no such set has been performed.
     pub fn set(&self, identifier_name: String, value: Expr) -> bool {
         let data_ptr = self.env_data.clone();
-        if data_ptr.dict.contains_key(&identifier_name) {
-            let dict_item = data_ptr.dict.get(&identifier_name).unwrap().clone();
-            let mut expr_lock = dict_item.write().unwrap();
-            *expr_lock = value;
+        let mut dict = data_ptr.dict.write().unwrap();
+        if dict.contains_key(&identifier_name) {
+            dict.insert(identifier_name, value);
             true
         } else if let Some(next_env) = data_ptr.next_env.clone() {
             Env::set(&next_env, identifier_name, value)
         } else {
             false
         }
+    }
+
+    /// Creates or updates a new binding in this environment from the identifier_name to expression
+    /// and returns true if value was created or updated correctly.
+    pub fn create(&self, identifier_name: String, value: Expr) -> bool {
+        let data_ptr = self.env_data.clone();
+        let mut dict = data_ptr.dict.write().unwrap();
+        dict.insert(identifier_name, value);
+        true
     }
 
     /// Creates a new Environment containing bindings from the identifier(s) in the binding_list to
@@ -164,8 +187,8 @@ impl Env {
 
         let binding_pairs = collect_binding_pairs(binding_list, bindings)
             .into_iter()
-            .map(|pair| (pair.0, Arc::new(RwLock::new(pair.1))));
-        Env { env_data: Arc::new(EnvData { dict: binding_pairs.collect(), next_env: Some(Env { env_data: self.env_data.clone() })})}
+            .map(|pair| (pair.0, pair.1));
+        Env { env_data: Arc::new(EnvData::extending(binding_pairs.collect(), Env { env_data: self.env_data.clone() }))}
     }
 }
 

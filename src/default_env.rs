@@ -11,24 +11,31 @@ use crate::call_stack::{
     StackFrame,
 };
 
-use crate::env::{
-    Env,
-};
+use crate::env::Env;
 
-fn eval_arguments<F>(accumulator: &mut Option<Expr>,
-                     frame: Option<StackFrame>,
-                     stack: &mut CallStack,
-                     return_fn: F) -> Option<StackFrame>
+fn eval_arguments_excepting<F>(accumulator: &mut Option<Expr>,
+                               frame: Option<StackFrame>,
+                               stack: &mut CallStack,
+                               exception_indices: Vec<usize>,
+                               return_fn: F) -> Option<StackFrame>
 where F: FnOnce(&mut Option<Expr>, IntoIter<Expr>, &mut CallStack) -> Option<StackFrame> {
     if let Some(frame) = frame {
         if let Expr { expr_data: ExprData::List(mut list) } = frame.expr {
             if let Some(next_expr) = list.next() {
-                stack.push_frame(StackFrame::new(ExprData::List(list).to_expr(),
-                                                 frame.env.clone(),
-                                                 frame.rib));
-                Some(StackFrame::new(next_expr,
-                                     frame.env.clone(),
-                                     vec![]))
+                if exception_indices.contains(&(frame.rib.len() - 1)) {
+                    let mut new_rib = frame.rib;
+                    new_rib.push(next_expr);
+                    Some(StackFrame::new(ExprData::List(list).to_expr(),
+                                         frame.env.clone(),
+                                         new_rib))
+                } else {
+                    stack.push_frame(StackFrame::new(ExprData::List(list).to_expr(),
+                                                     frame.env.clone(),
+                                                     frame.rib));
+                    Some(StackFrame::new(next_expr,
+                                         frame.env.clone(),
+                                         vec![]))
+                }
             } else {
                 // Throw away the Function expr that starts the list
                 let mut iter = frame.rib.into_iter();
@@ -44,6 +51,18 @@ where F: FnOnce(&mut Option<Expr>, IntoIter<Expr>, &mut CallStack) -> Option<Sta
     }
 }
 
+fn eval_arguments<F>(accumulator: &mut Option<Expr>,
+                     frame: Option<StackFrame>,
+                     stack: &mut CallStack,
+                     return_fn: F) -> Option<StackFrame>
+where F: FnOnce(&mut Option<Expr>, IntoIter<Expr>, &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_excepting(accumulator,
+                             frame,
+                             stack,
+                             vec![],
+                             return_fn)
+}
+
 fn eval_arguments_and_apply<F>(accumulator: &mut Option<Expr>,
                                frame: Option<StackFrame>,
                                stack: &mut CallStack,
@@ -56,6 +75,22 @@ where F: FnOnce(IntoIter<Expr>) -> Expr {
                        *accumulator = Some(application(iter));
                        stack.pop_frame()
                    })
+}
+
+fn eval_arguments_excepting_and_apply<F>(accumulator: &mut Option<Expr>,
+                                         frame: Option<StackFrame>,
+                                         stack: &mut CallStack,
+                                         exception_indices: Vec<usize>,
+                                         application: F) -> Option<StackFrame>
+where F: FnOnce(IntoIter<Expr>) -> Expr {
+    eval_arguments_excepting(accumulator,
+                             frame,
+                             stack,
+                             exception_indices,
+                             |accumulator, iter, stack| {
+                                 *accumulator = Some(application(iter));
+                                 stack.pop_frame()
+                             })
 }
 
 //=============== Arithmetic Functions ===============
@@ -557,76 +592,47 @@ fn unquote(_accumulator: &mut Option<Expr>, _frame: Option<StackFrame>, _stack: 
     panic!("Unexpected unquote found outside of quasiquoted expression")
 }
 
+fn unquote_splicing(_accumulator: &mut Option<Expr>, _frame: Option<StackFrame>, _stack: &mut CallStack) -> Option<StackFrame> {
+    panic!("Unexpected unquote-splicing found outside of quasiquoted list expression")
+}
+
 //=============== Environment Manipulation ===============
 
 fn set(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
-    let frame = frame.unwrap();
-    match frame.rib.len() {
-        1 => {
-            // Read in the identifier unevaluated
-            match frame.expr.expr_data {
-                ExprData::List(mut iter) => {
-                    let expr = iter.next();
-                    if let Some(Expr { expr_data: ExprData::Identifier(identifier) }) = expr {
-                        let mut rib = frame.rib;
-                        rib.push(ExprData::Identifier(identifier).to_expr());
-                        Some(StackFrame {
-                            expr: ExprData::List(iter).to_expr(),
-                            env: frame.env,
-                            rib,
-                        })
-                    } else {
-                        panic!("set! must be given an identifier. Found: {:?}", expr);
-                    }
-                }
-                _ => panic!("List must be used to call set function")
-            }
-        },
-        2 => {
-            match frame.expr.expr_data {
-                ExprData::List(mut iter) => {
-                    if let Some(expr) = iter.next() {
-                        let next_frame = StackFrame {
-                            expr: ExprData::List(iter).to_expr(),
-                            env: frame.env.clone(),
-                            rib: frame.rib
-                        };
-                        stack.push_frame(next_frame);
-                        Some(StackFrame {
-                            expr,
-                            env: frame.env.clone(),
-                            rib: vec![]
-                        })
-                    } else {
-                        panic!("set! must be given two arguments")
-                    }
-                }
-                _ => panic!("set! must be given two arguments")
-            }
-        },
-        3 => {
-            // Set with the two exprs
-            let mut rib_iter = frame.rib.into_iter();
-            // Throw away the function expr
-            rib_iter.next();
-            if let (Some(Expr { expr_data: ExprData::Identifier(identifier) }),
-                    Some(expr),
-                    None) = (rib_iter.next(), rib_iter.next(), rib_iter.next()) {
-                if frame.env.get(&identifier).is_none() {
-                    panic!("Cannot set variable before definition")
-                }
+    let env = frame.as_ref().unwrap().env.clone();
+    eval_arguments_excepting_and_apply(accumulator,
+                                       frame,
+                                       stack,
+                                       vec![0],
+                                       |mut iter| {
+                                           if let (Some(Expr { expr_data: ExprData::Identifier(identifier) }),
+                                                   Some(expr),
+                                                   None) = (iter.next(), iter.next(), iter.next()) {
+                                               let success = env.set(identifier, expr);
+                                               ExprData::Bool(success).to_expr()
+                                           } else {
+                                               panic!("Unexpected argument list passed to set!")
+                                           }
+                                       })
+}
 
-                let env = frame.env.clone();
-                env.set(identifier, expr);
+fn create(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    let env = frame.as_ref().unwrap().env.clone();
+    eval_arguments_excepting_and_apply(accumulator,
+                                       frame,
+                                       stack,
+                                       vec![0],
+                                       |mut iter| {
+                                           if let (Some(Expr { expr_data: ExprData::Identifier(identifier) }),
+                                                   Some(expr),
+                                                   None) = (iter.next(), iter.next(), iter.next()) {
+                                               env.create(identifier, expr);
+                                               ExprData::Bool(true).to_expr()
+                                           } else {
+                                               panic!("Unexpected argument list passed to create!")
+                                           }
+                                       })
 
-                *accumulator = Some(ExprData::Nil.to_expr());
-                stack.pop_frame()
-            } else {
-               panic!("Invalid rib found for evaluation of set!")
-            }
-        },
-        _ => panic!("Invalid number of arguments found for set!"),
-    }
 }
 
 //=============== Evaluation Control ===============
@@ -690,6 +696,7 @@ pub fn default_env() -> Env {
             ("unquote".to_string(), ExprData::Function("unquote".to_string(), unquote).to_expr()),
 
             ("set!".to_string(), ExprData::Function("set!".to_string(), set).to_expr()),
+            ("create!".to_string(), ExprData::Function("create!".to_string(), create).to_expr()),
 
             ("begin".to_string(), ExprData::Function("begin".to_string(), begin).to_expr()),
             ("eval".to_string(), ExprData::Function("eval".to_string(), eval).to_expr()),
