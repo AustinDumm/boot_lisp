@@ -1,5 +1,6 @@
 
 use std::vec::IntoIter;
+use std::process;
 
 use crate::parser::{
     Expr,
@@ -669,6 +670,22 @@ fn eval(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut C
                    })
 }
 
+fn exit(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_apply(accumulator,
+                             frame,
+                             stack,
+                             |mut iter| {
+                                 let first = iter.next();
+                                 if first.is_none() {
+                                     process::exit(0);
+                                 } else if let (Some(Expr { expr_data: ExprData::Integer(value) }), None) = (first, iter.next()) {
+                                     process::exit(value);
+                                 } else {
+                                     panic!("Incorrect arguments list provided to exit. Expected 1 Integer")
+                                 }
+                             })
+}
+
 //=============== Environment Creation ===============
 pub fn default_env() -> Env {
     Env::containing(
@@ -700,6 +717,7 @@ pub fn default_env() -> Env {
 
             ("begin".to_string(), ExprData::Function("begin".to_string(), begin).to_expr()),
             ("eval".to_string(), ExprData::Function("eval".to_string(), eval).to_expr()),
+            ("exit".to_string(), ExprData::Function("exit".to_string(), exit).to_expr()),
 
             ("lambda".to_string(), ExprData::Function("lambda".to_string(), build_lambda).to_expr()),
             ("if".to_string(), ExprData::Function("if".to_string(), if_impl).to_expr()),
