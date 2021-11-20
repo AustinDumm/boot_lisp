@@ -27,3 +27,13 @@
             `((lambda ,arg-list (begin ,@body)) ,@values-list))
          (apply zip bindings))))
 
+(macro let*
+    (lambda (bindings . body)
+        (begin
+            (define (build-lambda args values)
+                (if (and (nil? args) (nil? values))
+                    `(begin ,@body)
+                    `((lambda (,(first args))
+                        ,(build-lambda (rest args) (rest values))) ,(first values))))
+           (apply build-lambda (apply zip bindings)))))
+

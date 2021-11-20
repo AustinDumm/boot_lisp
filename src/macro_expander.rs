@@ -10,7 +10,7 @@ use crate::env::Env;
 
 pub fn macro_expand(exprs: Vec<Expr>, evaluation_env: Env, macro_env: &mut Env) -> Vec<Expr> {
     let exprs = collect_macro_definitions(exprs, evaluation_env.clone(), macro_env);
-    let exprs = exprs
+    let exprs: Vec<Expr> = exprs
         .into_iter()
         .map(|expr| {
             expand_macro(expr, evaluation_env.clone(), macro_env)
@@ -62,7 +62,8 @@ fn collect_macro_definitions(exprs: Vec<Expr>, evaluation_env: Env, macro_env: &
                     (Some(Expr { expr_data: ExprData::Identifier(macro_literal) }),
                      Some(Expr { expr_data: ExprData::Identifier(macro_name) }))
                         if macro_literal.as_str() == "macro" => {
-                            let expr = evaluator::eval(iter.next().unwrap(), evaluation_env.clone()).unwrap();
+                            let expanded = macro_expand(vec![iter.next().unwrap()], evaluation_env.clone(), macro_env)[0].clone();
+                            let expr = evaluator::eval(expanded, evaluation_env.clone()).unwrap();
                             match &expr.expr_data {
                                 ExprData::Lambda(_, _, _) => {
                                     macro_env.create(macro_name, expr);

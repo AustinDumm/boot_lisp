@@ -643,7 +643,7 @@ pub fn quasiquote(_accumulator: &mut Option<Expr>, frame: Option<StackFrame>, _s
                         }
                         ExprData::List(expr_list.into_iter()).to_expr()
                     },
-                    None => panic!("Unexpected end to expression list found while parsing quasiquote")
+                    None => ExprData::List(vec![].into_iter()).to_expr().quoted(),
                 }
             },
             expr => expr.to_expr().quoted()
@@ -690,7 +690,7 @@ pub fn quasiquote(_accumulator: &mut Option<Expr>, frame: Option<StackFrame>, _s
                         expr_data.push(ExprData::List(inner_list.into_iter()).to_expr());
                         ExprData::List(expr_data.into_iter()).to_expr()
                     },
-                    None => panic!("Unexpected end to list while applying quasiquoted list")
+                    None => ExprData::List(vec![ExprData::List(vec![].into_iter()).to_expr()].into_iter()).to_expr().quoted(),
                 }
             },
             expr => ExprData::List(vec![expr.to_expr()].into_iter()).to_expr().quoted(),
