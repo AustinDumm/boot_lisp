@@ -9,3 +9,21 @@
         '()
         (cons (apply f (first elts) (map first elts*))
               (apply map f (rest elts) (map rest elts*)))))
+
+(define (reduce f elts)
+    (define (reduce-impl f running elts)
+        (if (empty? elts)
+            running
+            (reduce-impl f (f running (first elts)) (rest elts))))
+    (reduce-impl f (first elts) (rest elts)))
+
+
+(define (zip . lists)
+    (apply map list lists))
+
+(macro let
+    (lambda (bindings . body)
+        (apply (lambda (arg-list values-list)
+            `((lambda ,arg-list (begin ,@body)) ,@values-list))
+         (apply zip bindings))))
+
