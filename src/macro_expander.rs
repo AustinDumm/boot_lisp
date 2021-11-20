@@ -61,14 +61,14 @@ fn collect_macro_definitions(exprs: Vec<Expr>, evaluation_env: Env, macro_env: &
                 match (iter.next(), iter.next()) {
                     (Some(Expr { expr_data: ExprData::Identifier(macro_literal) }),
                      Some(Expr { expr_data: ExprData::Identifier(macro_name) }))
-                        if macro_literal.as_str() == "macro" => {
+                        if macro_literal.as_str() == "define-macro" => {
                             let expanded = macro_expand(vec![iter.next().unwrap()], evaluation_env.clone(), macro_env)[0].clone();
                             let expr = evaluator::eval(expanded, evaluation_env.clone()).unwrap();
                             match &expr.expr_data {
                                 ExprData::Lambda(_, _, _) => {
                                     macro_env.create(macro_name, expr);
                                 },
-                                _ => panic!("macro must be given lambda as argument")
+                                _ => panic!("define-macro must be given lambda as argument")
                             }
                         },
                     _ => {
