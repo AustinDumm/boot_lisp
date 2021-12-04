@@ -4,6 +4,22 @@
             `(create! ,(first binding) (lambda ,(rest binding) (begin ,@value)))
             `(create! ,binding ,value))))
 
+(define (zip . lists)
+    (apply map list lists))
+
+(define (map f elts . elts*)
+    (if (empty? elts)
+        '()
+        (cons (apply f (first elts) (map first elts*))
+              (apply map f (rest elts) (map rest elts*)))))
+
+(define (reduce f elts)
+    (define (reduce-impl f running elts)
+        (if (empty? elts)
+            running
+            (reduce-impl f (f running (first elts)) (rest elts))))
+    (reduce-impl f (first elts) (rest elts)))
+
 (define-macro let
     (lambda (bindings . body)
         (apply (lambda (arg-list values-list)
@@ -33,21 +49,18 @@
                         ,@(build-set-list bindings)
                         ,@body)) ,@values-list))
                    (apply zip bindings)))))
+
+(define-macro cond
+    (lambda condition-list
+        (begin 
+            (define (build-cond condition-list)
+                (if (nil? condition-list)
+                    '()
+                    (let* ((condition (first condition-list))
+                           (conditional (first condition))
+                           (result (first (rest condition))))
+                        `(if ,conditional
+                             ,result
+                             ,(build-cond (rest condition-list))))))
+            (build-cond condition-list))))
         
-(define (map f elts . elts*)
-    (if (empty? elts)
-        '()
-        (cons (apply f (first elts) (map first elts*))
-              (apply map f (rest elts) (map rest elts*)))))
-
-(define (reduce f elts)
-    (define (reduce-impl f running elts)
-        (if (empty? elts)
-            running
-            (reduce-impl f (f running (first elts)) (rest elts))))
-    (reduce-impl f (first elts) (rest elts)))
-
-
-(define (zip . lists)
-    (apply map list lists))
-
