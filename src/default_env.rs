@@ -268,52 +268,89 @@ fn bit_not(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mu
 //=============== Logical Operators ===============
 
 fn and(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
-    eval_arguments_and_apply(accumulator,
-                             frame,
-                             stack,
-                             |iter| {
-                                 let booleans = iter.map(|expr| {
-                                     match expr.expr_data {
-                                         ExprData::Bool(boolean) => boolean,
-                                         _ => panic!("and must take boolean"),
-                                     }
-                                 });
+    let frame = frame.expect("No frame found when evaluating and");
+    if frame.rib.len() == 1 {
+        // Last item is this function, need to evaluate next boolean
+        if let ExprData::List(mut iter) = frame.expr.expr_data {
+            if let Some(expr) = iter.next() {
+                let next_frame = StackFrame::new(expr,
+                                                 frame.env.clone(),
+                                                 vec![]);
 
-                                 for boolean in booleans {
-                                     if boolean {
-                                         continue
-                                     } else {
-                                         return ExprData::Bool(false).to_expr()
-                                     }
-                                 }
+                stack.push_frame(StackFrame::new(ExprData::List(iter).to_expr(),
+                                                 frame.env.clone(),
+                                                 frame.rib));
 
-                                 return ExprData::Bool(true).to_expr()
-                             })
+                Some(next_frame)
+            } else {
+                *accumulator = Some(ExprData::Bool(true).to_expr());
+                stack.pop_frame()
+            }
+        } else {
+            panic!("and must be given a list as arguments")
+        }
+    } else {
+        // Last item in rib is an expr. Check to see if we need to short-circuit the and
+        let last_rib_expr = frame.rib.last().unwrap();
+        match &last_rib_expr.expr_data {
+            ExprData::Bool(false) => {
+                *accumulator = Some(ExprData::Bool(false).to_expr());
+                stack.pop_frame()
+            },
+            ExprData::Bool(true) => {
+                let mut rib = frame.rib;
+                rib.remove(rib.len() - 1);
+
+                Some(StackFrame::new(frame.expr,
+                                     frame.env,
+                                     rib))
+            }
+            expr => panic!("and expects values of boolean type. Found: {}", expr)
+        }
+    }
 }
 
 fn or(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
-    eval_arguments_and_apply(accumulator,
-                             frame,
-                             stack,
-                             |iter| {
-                                 let booleans = iter.map(|expr| {
-                                     match expr.expr_data {
-                                         ExprData::Bool(boolean) => boolean,
-                                         _ => panic!("or must take boolean"),
-                                     }
-                                 });
+    let frame = frame.expect("No frame found when evaluating or");
+    if frame.rib.len() == 1 {
+        // Last item is this function, need to evaluate next boolean
+        if let ExprData::List(mut iter) = frame.expr.expr_data {
+            if let Some(expr) = iter.next() {
+                let next_frame = StackFrame::new(expr,
+                                                 frame.env.clone(),
+                                                 vec![]);
 
-                                 for boolean in booleans {
-                                     if boolean {
-                                         return ExprData::Bool(true).to_expr()
-                                     } else {
-                                         continue
-                                     }
-                                 }
+                stack.push_frame(StackFrame::new(ExprData::List(iter).to_expr(),
+                                                 frame.env.clone(),
+                                                 frame.rib));
 
-                                 return ExprData::Bool(false).to_expr()
-                             })
-}
+                Some(next_frame)
+            } else {
+                *accumulator = Some(ExprData::Bool(false).to_expr());
+                stack.pop_frame()
+            }
+        } else {
+            panic!("or must be given a list as arguments")
+        }
+    } else {
+        // Last item in rib is an expr. Check to see if we need to short-circuit the and
+        let last_rib_expr = frame.rib.last().unwrap();
+        match &last_rib_expr.expr_data {
+            ExprData::Bool(true) => {
+                *accumulator = Some(ExprData::Bool(true).to_expr());
+                stack.pop_frame()
+            },
+            ExprData::Bool(false) => {
+                let mut rib = frame.rib;
+                rib.remove(rib.len() - 1);
+
+                Some(StackFrame::new(frame.expr,
+                                     frame.env,
+                                     rib))
+            }
+            expr => panic!("and expects values of boolean type. Found: {}", expr)
+        }
+    }}
 
 fn xor(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
     eval_arguments_and_apply(accumulator,
