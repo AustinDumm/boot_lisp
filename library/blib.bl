@@ -20,6 +20,19 @@
                         ,(build-lambda (rest args) (rest values))) ,(first values))))
            (apply build-lambda (apply zip bindings)))))
 
+(define-macro letrec
+    (lambda (bindings . body)
+        (begin
+            (define (build-set-list bindings)
+                (if (and (list? bindings) (nil? bindings))
+                    '()
+                    (cons `(set! ,@(first bindings)) (build-set-list (rest bindings)))))
+            (apply (lambda (args-list values-list)
+                `((lambda ,args-list
+                    (begin
+                        ,@(build-set-list bindings)
+                        ,@body)) ,@values-list))
+                   (apply zip bindings)))))
         
 (define (map f elts . elts*)
     (if (empty? elts)
