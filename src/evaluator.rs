@@ -213,8 +213,8 @@ mod tests {
     #[test]
     fn evaluates_single_nil() {
         assert_eq!(
-            eval(ExprData::Nil.to_expr(), Env::new()).expect("Failed to evaluate"),
-            ExprData::Nil.to_expr()
+            eval(ExprData::nil().to_expr(), Env::new()).expect("Failed to evaluate"),
+            ExprData::nil().to_expr()
         );
     }
 
