@@ -15,9 +15,7 @@ use crate::call_stack::{
     CallStack,
 };
 
-use crate::env::{
-    Env,
-};
+use crate::env::Env;
 
 use crate::default_env;
 
@@ -326,31 +324,31 @@ mod tests {
 
     #[test]
     fn parses_single_elements() {
-        assert_eq!(Ok(ExprData::Integer(58).to_expr()),
+        assert_eq!(Ok(vec![ExprData::Integer(58).to_expr()]),
                    parse(vec![TokenType::Integer(58).to_token()]));
 
-        assert_eq!(Ok(ExprData::Identifier(String::from("ident")).to_expr()),
+        assert_eq!(Ok(vec![ExprData::Identifier(String::from("ident")).to_expr()]),
                    parse(vec![TokenType::Identifier(String::from("ident")).to_token()]));
 
-        assert_eq!(Ok(ExprData::Bool(true).to_expr()),
+        assert_eq!(Ok(vec![ExprData::Bool(true).to_expr()]),
                    parse(vec![TokenType::Bool(true).to_token()]));
     }
 
     #[test]
     fn parses_lists() {
-        assert_eq!(Ok(Expr::form_list(vec![ExprData::Integer(289)])),
+        assert_eq!(Ok(vec![Expr::form_list(vec![ExprData::Integer(289)])]),
                    parse(vec![TokenType::OpenBrace.to_token(),
                               TokenType::Integer(289).to_token(),
                               TokenType::CloseBrace.to_token()]));
 
-        assert_eq!(Ok(Expr::form_list(vec![ExprData::Identifier(String::from("ident"))])),
+        assert_eq!(Ok(vec![Expr::form_list(vec![ExprData::Identifier(String::from("ident"))])]),
                    parse(vec![TokenType::OpenBrace.to_token(),
                               TokenType::Identifier(String::from("ident")).to_token(),
                               TokenType::CloseBrace.to_token()]));
 
-        assert_eq!(Ok(Expr::form_list(vec![ExprData::Identifier(String::from("add")),
+        assert_eq!(Ok(vec![Expr::form_list(vec![ExprData::Identifier(String::from("add")),
                                            ExprData::Integer(5),
-                                           ExprData::Integer(10)])),
+                                           ExprData::Integer(10)])]),
                    parse(vec![TokenType::OpenBrace.to_token(),
                               TokenType::Identifier(String::from("add")).to_token(),
                               TokenType::Integer(5).to_token(),
@@ -360,8 +358,8 @@ mod tests {
 
     #[test]
     fn parses_quote_tokens() {
-        assert_eq!(Ok(ExprData::List(vec![ExprData::Identifier("quote".to_string()).to_expr(),
-                                          Expr::form_list(vec![ExprData::Integer(1), ExprData::Integer(2)])].into_iter()).to_expr()),
+        assert_eq!(Ok(vec![ExprData::List(vec![ExprData::Identifier("quote".to_string()).to_expr(),
+                                          Expr::form_list(vec![ExprData::Integer(1), ExprData::Integer(2)])].into_iter()).to_expr()]),
                    parse(vec![TokenType::Quote.to_token(),
                               TokenType::OpenBrace.to_token(),
                               TokenType::Integer(1).to_token(),
@@ -371,9 +369,9 @@ mod tests {
 
     #[test]
     fn parses_dotted_lists() {
-        assert_eq!(Ok(ExprData::DottedList(vec![ExprData::Integer(512).to_expr(),
+        assert_eq!(Ok(vec![ExprData::DottedList(vec![ExprData::Integer(512).to_expr(),
                                                 ExprData::ident_from("ident").to_expr()].into_iter(),
-                                           Box::new(ExprData::Integer(667).to_expr())).to_expr()),
+                                           Box::new(ExprData::Integer(667).to_expr())).to_expr()]),
                    parse(vec![TokenType::OpenBrace.to_token(),
                               TokenType::Integer(512).to_token(),
                               TokenType::ident_from("ident").to_token(),
@@ -381,8 +379,8 @@ mod tests {
                               TokenType::Integer(667).to_token(),
                               TokenType::CloseBrace.to_token()]));
 
-        assert_eq!(Ok(ExprData::List(vec![ExprData::Integer(951).to_expr(),
-                                          ExprData::ident_from("blah").to_expr()].into_iter()).to_expr()),
+        assert_eq!(Ok(vec![ExprData::List(vec![ExprData::Integer(951).to_expr(),
+                                          ExprData::ident_from("blah").to_expr()].into_iter()).to_expr()]),
                    parse(vec![TokenType::OpenBrace.to_token(),
                               TokenType::Integer(951).to_token(),
                               TokenType::ident_from("blah").to_token(),
@@ -390,10 +388,10 @@ mod tests {
                               TokenType::OpenBrace.to_token(),
                               TokenType::CloseBrace.to_token()]));
 
-        assert_eq!(Ok(ExprData::DottedList(vec![ExprData::Integer(1).to_expr(),
+        assert_eq!(Ok(vec![ExprData::DottedList(vec![ExprData::Integer(1).to_expr(),
                                                 ExprData::Integer(2).to_expr(),
                                                 ExprData::Integer(3).to_expr()].into_iter(),
-                                           Box::new(ExprData::Integer(4).to_expr())).to_expr()),
+                                           Box::new(ExprData::Integer(4).to_expr())).to_expr()]),
                    parse(vec![TokenType::OpenBrace.to_token(),
                               TokenType::Integer(1).to_token(),
                               TokenType::Dot.to_token(),
@@ -408,9 +406,9 @@ mod tests {
                               TokenType::CloseBrace.to_token(),
                               TokenType::CloseBrace.to_token()]));
 
-        assert_eq!(Ok(ExprData::List(vec![ExprData::Integer(1).to_expr(),
+        assert_eq!(Ok(vec![ExprData::List(vec![ExprData::Integer(1).to_expr(),
                                           ExprData::Integer(2).to_expr(),
-                                          ExprData::Integer(3).to_expr()].into_iter()).to_expr()),
+                                          ExprData::Integer(3).to_expr()].into_iter()).to_expr()]),
                    parse(vec![TokenType::OpenBrace.to_token(),
                               TokenType::Integer(1).to_token(),
                               TokenType::Dot.to_token(),
