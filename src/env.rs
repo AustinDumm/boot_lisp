@@ -207,7 +207,7 @@ mod env_tests {
     fn does_set_on_empty_env_fail() {
         let env = Env::new();
 
-        assert!(!env.set(String::from("test"), ExprData::Nil.to_expr()));
+        assert!(!env.set(String::from("test"), ExprData::nil().to_expr()));
     }
 
     #[test]
@@ -225,7 +225,7 @@ mod env_tests {
                     vec![ExprData::Integer(6).to_expr(),
                          ExprData::Identifier(String::from("rest")).to_expr()].into_iter(),
                     Box::new(ExprData::Integer(10).to_expr())).to_expr();
-        let nil = ExprData::Nil.to_expr();
+        let nil = ExprData::nil().to_expr();
 
         let env =
             Env::containing(
@@ -238,12 +238,12 @@ mod env_tests {
                         .into_iter()
                         .collect());
 
-        assert_eq!(*env.get("integer").unwrap().read().unwrap(), integer);
-        assert_eq!(*env.get("identifier").unwrap().read().unwrap(), identifier);
-        assert_eq!(*env.get("lambda").unwrap().read().unwrap(), lambda_expr);
-        assert_eq!(*env.get("list").unwrap().read().unwrap(), list);
-        assert_eq!(*env.get("dotted").unwrap().read().unwrap(), dotted);
-        assert_eq!(*env.get("nil").unwrap().read().unwrap(), nil);
+        assert_eq!(env.get("integer").unwrap(), integer);
+        assert_eq!(env.get("identifier").unwrap(), identifier);
+        assert_eq!(env.get("lambda").unwrap(), lambda_expr);
+        assert_eq!(env.get("list").unwrap(), list);
+        assert_eq!(env.get("dotted").unwrap(), dotted);
+        assert_eq!(env.get("nil").unwrap(), nil);
     }
 
     #[test]
@@ -256,7 +256,7 @@ mod env_tests {
 
         let env_value = env.get("test").unwrap();
 
-        assert_eq!(env_value.read().unwrap().expr_data,
+        assert_eq!(env_value.expr_data,
                    ExprData::List(vec![ExprData::Integer(5).to_expr()].into_iter()));
     }
 
@@ -270,10 +270,10 @@ mod env_tests {
                 Expr::form_list(vec![ExprData::Integer(30),
                                      ExprData::Integer(40)]));
 
-        assert_eq!(env.get("first").unwrap().read().unwrap().expr_data,
+        assert_eq!(env.get("first").unwrap().expr_data,
                    ExprData::Integer(30));
 
-        assert_eq!(env.get("sec").unwrap().read().unwrap().expr_data,
+        assert_eq!(env.get("sec").unwrap().expr_data,
                    ExprData::Integer(40));
     }
 
@@ -288,10 +288,10 @@ mod env_tests {
                                      ExprData::Integer(101),
                                      ExprData::Integer(102)]));
 
-        assert_eq!(env.get("first").unwrap().read().unwrap().expr_data,
+        assert_eq!(env.get("first").unwrap().expr_data,
                    ExprData::Integer(100));
 
-        assert_eq!(env.get("rest").unwrap().read().unwrap().expr_data,
+        assert_eq!(env.get("rest").unwrap().expr_data,
                    ExprData::List(vec![ExprData::Integer(101).to_expr(),
                                        ExprData::Integer(102).to_expr()].into_iter()));
     }
@@ -300,12 +300,12 @@ mod env_tests {
     fn does_set_update_env() {
         let env = Env::containing(vec![(String::from("key"), ExprData::Integer(17).to_expr())].into_iter().collect());
 
-        assert_eq!(env.get("key").unwrap().read().unwrap().expr_data,
+        assert_eq!(env.get("key").unwrap().expr_data,
                    ExprData::Integer(17));
 
         env.set(String::from("key"), ExprData::Integer(33).to_expr());
 
-        assert_eq!(env.get("key").unwrap().read().unwrap().expr_data,
+        assert_eq!(env.get("key").unwrap().expr_data,
                    ExprData::Integer(33));
     }
 
@@ -315,12 +315,12 @@ mod env_tests {
 
         let val_ref = env.get("key").unwrap();
 
-        assert_eq!(val_ref.read().unwrap().expr_data,
+        assert_eq!(val_ref.expr_data,
                    ExprData::Integer(69));
 
         env.set(String::from("key"), ExprData::Integer(420).to_expr());
 
-        assert_eq!(val_ref.read().unwrap().expr_data,
+        assert_eq!(val_ref.expr_data,
                    ExprData::Integer(420));
     }
     
