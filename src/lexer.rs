@@ -355,8 +355,7 @@ where I: Iterator<Item = char> {
             Some('f') =>
                 Ok(TokenType::Bool(false).to_token()),
             Some('\\') =>
-                Ok(TokenType::Character(stream.next().ok_or(BootLispError::new(ErrorType::Lex,
-                                                                               "No character found after #\\"))?).to_token()),
+                lex_character_literal(stream),
             Some(other) =>
                 Err(BootLispError::new(ErrorType::Lex,
                                        &format!("Invalid character found after #: {}", other))),
@@ -374,6 +373,33 @@ where I: Iterator<Item = char> {
         }
     } else {
         result
+    }
+}
+
+fn lex_character_literal<I>(stream: &mut Peekable<I>) -> LexResult
+where I: Iterator<Item = char> {
+    if let Some(character) = stream.next() {
+        if stream.peek().is_none() || TokenType::is_delimiter(stream.peek().unwrap()) {
+            Ok(TokenType::Character(character).to_token())
+        } else {
+            let mut string = character.to_string();
+            while let Some(peeked) = stream.peek() {
+                if TokenType::is_delimiter(peeked) {
+                    break
+                }
+
+                string.push(*peeked);
+                stream.next();
+            }
+
+            match string.as_str() {
+                "newline" => Ok(TokenType::Character('\n').to_token()),
+                "tab" => Ok(TokenType::Character('\t').to_token()),
+                other => Err(BootLispError::new(ErrorType::Lex, &format!("Invalid character type: {}", other)))
+            }
+        }
+    } else {
+        Err(BootLispError::new(ErrorType::Lex, "No character found following #\\"))
     }
 }
 
@@ -471,6 +497,12 @@ mod lexing_tests {
 
         assert_eq!(lex(String::from("#\\A")),
                    Ok(vec![TokenType::Character('A').to_token()]));
+
+        assert_eq!(lex(String::from("#\\newline")),
+                   Ok(vec![TokenType::Character('\n').to_token()]));
+
+        assert_eq!(lex(String::from("#\\tab")),
+                   Ok(vec![TokenType::Character('\t').to_token()]));
     }
 }
 
