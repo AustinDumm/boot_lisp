@@ -67,6 +67,13 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
             ) |
             Some(
                 StackFrame {
+                    expr: Expr { expr_data: ExprData::StringLiteral(_) },
+                    env: _,
+                    rib: _,
+                }
+            ) |
+            Some(
+                StackFrame {
                     expr: Expr { expr_data: ExprData::Lambda(_, _, _) },
                     env: _,
                     rib: _

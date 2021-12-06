@@ -22,6 +22,9 @@ use std::convert::TryInto;
 /// - Character
 ///     - ```[\\#][.]```
 ///     - Single unicode scalar value
+/// - String Literal
+///     - ```["][.]*["]```
+///     - List of characters surrounded by double quotes
 /// - Quote
 ///     - ```[']```
 ///     - Marks an expression to be treated as a data literal rather than expression to evaluate
@@ -56,6 +59,7 @@ pub enum TokenType {
     Bool(bool),
     Integer(i32),
     Character(char),
+    StringLiteral(String),
     Quote,
     Quasiquote,
     Unquote,
@@ -222,6 +226,9 @@ pub fn lex(program: String) -> Result<Vec<Token>, BootLispError> {
             }
             '#' => {
                 token_list.push(lex_octothorpe(&mut stream)?);
+            }
+            '"' => {
+                token_list.push(lex_string_literal(&mut stream)?);
             }
             c if c.is_digit(10) => {
                 token_list.push(lex_digit(&mut stream, false)?);
@@ -403,6 +410,39 @@ where I: Iterator<Item = char> {
     }
 }
 
+fn lex_escape_string_character<I>(stream: &mut Peekable<I>) -> Result<char, BootLispError>
+where I: Iterator<Item = char> {
+    match stream.next() {
+        Some('n') => Ok('\n'),
+        Some('t') => Ok('\t'),
+        Some('"') => Ok('"'),
+        Some(other) => Err(BootLispError::new(ErrorType::Lex, &format!("Invalid escape character found: {}", other))),
+        None => Err(BootLispError::new(ErrorType::Lex, "End of character stream found while lexing escape character")),
+    }
+}
+
+fn lex_string_literal<I>(stream: &mut Peekable<I>) -> LexResult
+where I: Iterator<Item = char> {
+    // Throw away leading double quote
+    stream.next();
+    let mut string = String::new();
+
+    while let Some(character) = stream.next() {
+        let next_char =
+            match character {
+                '\"' => {
+                    stream.next();
+                    break
+                },
+                '\\' => lex_escape_string_character(stream)?,
+                other => other,
+            };
+
+        string.push(next_char);
+    }
+
+    Ok(TokenType::StringLiteral(string).to_token())
+}
 
 #[cfg(test)]
 mod lexing_tests {
@@ -503,6 +543,15 @@ mod lexing_tests {
 
         assert_eq!(lex(String::from("#\\tab")),
                    Ok(vec![TokenType::Character('\t').to_token()]));
+    }
+
+    #[test]
+    fn lexes_string_literal() {
+        assert_eq!(Ok(vec![TokenType::StringLiteral("1 2 3 4".to_string()).to_token()]),
+                   lex(String::from("\"1 2 3 4\"")));
+
+        assert_eq!(Ok(vec![TokenType::StringLiteral("1 \n 2 \t 3".to_string()).to_token()]),
+                   lex(String::from("\"1 \n 2 \t 3\"")));
     }
 }
 

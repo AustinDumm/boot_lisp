@@ -23,6 +23,10 @@ use crate::default_env;
 /// - Integer
 ///     - Type contains a 32 bit integer. Positive or negative whole number
 ///     - Value belongs in set **Z**
+/// - Character
+///     - Type contains a unicode scalar value
+/// - String Literal
+///     - A list of character contained in a single string
 /// - Identifier
 ///     - Type contains a string used to bind in the environment to other expression values
 /// - Lambda
@@ -59,6 +63,7 @@ pub enum ExprData {
     Bool(bool),
     Integer(i32),
     Character(char),
+    StringLiteral(String),
     Identifier(String),
     Lambda(Box<Expr>, Box<Expr>, Env),
     Function(String, fn(&mut Option<Expr>, Option<StackFrame>, &mut CallStack) -> Option<StackFrame>),
@@ -80,6 +85,7 @@ impl std::fmt::Display for ExprData {
             Bool(false) => "#f".fmt(f),
             Integer(ref i) => i.fmt(f),
             Character(ref c) => write!(f, "#\\{}", c),
+            StringLiteral(ref s) => write!(f, "\"{}\"", s),
             Identifier(ref s) => s.fmt(f),
             Lambda(_, _, _) => write!(f, "<Lambda>"),
             Function(name, _) => write!(f, "<Built-In Function: {}>", name),
@@ -112,6 +118,7 @@ impl PartialEq for ExprData {
             (ExprData::Bool(this), ExprData::Bool(other)) => this == other,
             (ExprData::Integer(this), ExprData::Integer(other)) => this == other,
             (ExprData::Character(this), ExprData::Character(other)) => this == other,
+            (ExprData::StringLiteral(this), ExprData::StringLiteral(other)) => this == other,
             (ExprData::Identifier(this), ExprData::Identifier(other)) => this == other,
             (ExprData::Lambda(this_args, this_body, this_env), ExprData::Lambda(other_args, other_body, other_env)) 
                 => this_args == other_args &&
@@ -249,6 +256,7 @@ where I: Iterator<Item = &'a Token> {
             TokenType::Bool(value) => Ok(ExprData::Bool(*value).to_expr()),
             TokenType::Integer(value) => Ok(ExprData::Integer(*value).to_expr()),
             TokenType::Character(value) => Ok(ExprData::Character(*value).to_expr()),
+            TokenType::StringLiteral(value) => Ok(ExprData::StringLiteral(value.to_string()).to_expr()),
             TokenType::Identifier(value) => Ok(ExprData::Identifier(value.clone()).to_expr()),
             TokenType::CloseBrace => Err(BootLispError::new(ErrorType::Parse,
                                                             "Close parenthesis found without matching open")),
