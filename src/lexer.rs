@@ -19,6 +19,9 @@ use std::convert::TryInto;
 /// - Integer
 ///     - ```[-]?[0-9]```
 ///     - Whole number parsed to be positive or negative if preceeded by a "-" character
+/// - Character
+///     - ```[\\#][.]```
+///     - Single unicode scalar value
 /// - Quote
 ///     - ```[']```
 ///     - Marks an expression to be treated as a data literal rather than expression to evaluate
@@ -52,6 +55,7 @@ pub enum TokenType {
     Identifier(String),
     Bool(bool),
     Integer(i32),
+    Character(char),
     Quote,
     Quasiquote,
     Unquote,
@@ -350,6 +354,9 @@ where I: Iterator<Item = char> {
                 Ok(TokenType::Bool(true).to_token()),
             Some('f') =>
                 Ok(TokenType::Bool(false).to_token()),
+            Some('\\') =>
+                Ok(TokenType::Character(stream.next().ok_or(BootLispError::new(ErrorType::Lex,
+                                                                               "No character found after #\\"))?).to_token()),
             Some(other) =>
                 Err(BootLispError::new(ErrorType::Lex,
                                        &format!("Invalid character found after #: {}", other))),
@@ -455,6 +462,15 @@ mod lexing_tests {
 
         assert_eq!(lex(String::from("#f")),
                    Ok(vec![TokenType::Bool(false).to_token()]));
+    }
+
+    #[test]
+    fn lexes_character() {
+        assert_eq!(lex(String::from("#\\b")),
+                   Ok(vec![TokenType::Character('b').to_token()]));
+
+        assert_eq!(lex(String::from("#\\A")),
+                   Ok(vec![TokenType::Character('A').to_token()]));
     }
 }
 

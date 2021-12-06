@@ -58,6 +58,7 @@ use crate::default_env;
 pub enum ExprData {
     Bool(bool),
     Integer(i32),
+    Character(char),
     Identifier(String),
     Lambda(Box<Expr>, Box<Expr>, Env),
     Function(String, fn(&mut Option<Expr>, Option<StackFrame>, &mut CallStack) -> Option<StackFrame>),
@@ -78,6 +79,7 @@ impl std::fmt::Display for ExprData {
             Bool(true) => "#t".fmt(f),
             Bool(false) => "#f".fmt(f),
             Integer(ref i) => i.fmt(f),
+            Character(ref c) => write!(f, "#\\{}", c),
             Identifier(ref s) => s.fmt(f),
             Lambda(_, _, _) => write!(f, "<Lambda>"),
             Function(name, _) => write!(f, "<Built-In Function: {}>", name),
@@ -109,6 +111,7 @@ impl PartialEq for ExprData {
         match (self, other) {
             (ExprData::Bool(this), ExprData::Bool(other)) => this == other,
             (ExprData::Integer(this), ExprData::Integer(other)) => this == other,
+            (ExprData::Character(this), ExprData::Character(other)) => this == other,
             (ExprData::Identifier(this), ExprData::Identifier(other)) => this == other,
             (ExprData::Lambda(this_args, this_body, this_env), ExprData::Lambda(other_args, other_body, other_env)) 
                 => this_args == other_args &&
@@ -245,6 +248,7 @@ where I: Iterator<Item = &'a Token> {
             TokenType::OpenBrace => parse_list(token_stream),
             TokenType::Bool(value) => Ok(ExprData::Bool(*value).to_expr()),
             TokenType::Integer(value) => Ok(ExprData::Integer(*value).to_expr()),
+            TokenType::Character(value) => Ok(ExprData::Character(*value).to_expr()),
             TokenType::Identifier(value) => Ok(ExprData::Identifier(value.clone()).to_expr()),
             TokenType::CloseBrace => Err(BootLispError::new(ErrorType::Parse,
                                                             "Close parenthesis found without matching open")),
@@ -288,24 +292,33 @@ where I: Iterator<Item = &'a Token> {
             TokenType::Dot => {
                 token_stream.next();
                 let final_element = parse_item(token_stream)?;
-                match final_element.expr_data {
-                    ExprData::List(iter) => {
-                        let mut collected: Vec<Expr> = iter.collect();
-                        list_items.append(&mut collected);
-                        return Ok(ExprData::List(list_items.into_iter()).to_expr())
-                    },
-                    ExprData::DottedList(iter, end) => {
-                        let mut collected: Vec<Expr> = iter.collect();
-                        list_items.append(&mut collected);
-                        return Ok(ExprData::DottedList(list_items.into_iter(), end).to_expr())
-                    },
-                    _ => {
-                        if Some(Token { token_type: TokenType::CloseBrace }).as_ref() != token_stream.next() {
-                            panic!("Dotted item must be last in list")
+                let result_expr: Expr = 
+                    match final_element.expr_data {
+                        ExprData::List(iter) => {
+                            let mut collected: Vec<Expr> = iter.collect();
+                            list_items.append(&mut collected);
+                            Ok(ExprData::List(list_items.into_iter()).to_expr())
+                        },
+                        ExprData::DottedList(iter, end) => {
+                            let mut collected: Vec<Expr> = iter.collect();
+                            list_items.append(&mut collected);
+                            Ok(ExprData::DottedList(list_items.into_iter(), end).to_expr())
+                        },
+                        _ => {
+                            if Some(Token { token_type: TokenType::CloseBrace }).as_ref().as_ref() != token_stream.peek() {
+                                Err(BootLispError::new(ErrorType::Parse, "Dotted item must be last in list"))
+                            } else {
+                                Ok(ExprData::DottedList(list_items.into_iter(), Box::new(final_element)).to_expr())
+                            }
                         }
+                    }?;
 
-                        return Ok(ExprData::DottedList(list_items.into_iter(), Box::new(final_element)).to_expr())
-                    }
+                if token_stream.next()
+                    .ok_or(BootLispError::new(ErrorType::Parse, &format!("No token found to end dotted list: {}", result_expr)))?
+                        .token_type == TokenType::CloseBrace {
+                    return Ok(result_expr)
+                } else {
+                    return Err(BootLispError::new(ErrorType::Parse, "Dotted list must end in close brace"))
                 }
             },
             _ => {
@@ -332,6 +345,9 @@ mod tests {
 
         assert_eq!(Ok(vec![ExprData::Bool(true).to_expr()]),
                    parse(vec![TokenType::Bool(true).to_token()]));
+
+        assert_eq!(Ok(vec![ExprData::Character('b').to_expr()]),
+                   parse(vec![TokenType::Character('b').to_token()]));
     }
 
     #[test]
@@ -347,23 +363,23 @@ mod tests {
                               TokenType::CloseBrace.to_token()]));
 
         assert_eq!(Ok(vec![Expr::form_list(vec![ExprData::Identifier(String::from("add")),
-                                           ExprData::Integer(5),
-                                           ExprData::Integer(10)])]),
+                                                ExprData::Integer(5),
+                                                ExprData::Character('8')])]),
                    parse(vec![TokenType::OpenBrace.to_token(),
                               TokenType::Identifier(String::from("add")).to_token(),
                               TokenType::Integer(5).to_token(),
-                              TokenType::Integer(10).to_token(),
+                              TokenType::Character('8').to_token(),
                               TokenType::CloseBrace.to_token()]));
     }
 
     #[test]
     fn parses_quote_tokens() {
         assert_eq!(Ok(vec![ExprData::List(vec![ExprData::Identifier("quote".to_string()).to_expr(),
-                                          Expr::form_list(vec![ExprData::Integer(1), ExprData::Integer(2)])].into_iter()).to_expr()]),
+                                          Expr::form_list(vec![ExprData::Integer(1), ExprData::Character('p')])].into_iter()).to_expr()]),
                    parse(vec![TokenType::Quote.to_token(),
                               TokenType::OpenBrace.to_token(),
                               TokenType::Integer(1).to_token(),
-                              TokenType::Integer(2).to_token(),
+                              TokenType::Character('p').to_token(),
                               TokenType::CloseBrace.to_token()]));
     }
 
@@ -386,12 +402,13 @@ mod tests {
                               TokenType::ident_from("blah").to_token(),
                               TokenType::Dot.to_token(),
                               TokenType::OpenBrace.to_token(),
+                              TokenType::CloseBrace.to_token(),
                               TokenType::CloseBrace.to_token()]));
 
         assert_eq!(Ok(vec![ExprData::DottedList(vec![ExprData::Integer(1).to_expr(),
-                                                ExprData::Integer(2).to_expr(),
-                                                ExprData::Integer(3).to_expr()].into_iter(),
-                                           Box::new(ExprData::Integer(4).to_expr())).to_expr()]),
+                                                     ExprData::Integer(2).to_expr(),
+                                                     ExprData::Integer(3).to_expr()].into_iter(),
+                                                Box::new(ExprData::Integer(4).to_expr())).to_expr()]),
                    parse(vec![TokenType::OpenBrace.to_token(),
                               TokenType::Integer(1).to_token(),
                               TokenType::Dot.to_token(),

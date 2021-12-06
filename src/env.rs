@@ -320,6 +320,8 @@ mod env_tests {
 
         env.set(String::from("key"), ExprData::Integer(420).to_expr());
 
+        let val_ref = env.get("key").unwrap();
+
         assert_eq!(val_ref.expr_data,
                    ExprData::Integer(420));
     }

@@ -60,6 +60,13 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
             ) |
             Some(
                 StackFrame {
+                    expr: Expr { expr_data: ExprData::Character(_) },
+                    env: _,
+                    rib: _,
+                }
+            ) |
+            Some(
+                StackFrame {
                     expr: Expr { expr_data: ExprData::Lambda(_, _, _) },
                     env: _,
                     rib: _
@@ -207,14 +214,6 @@ mod tests {
         assert_eq!(
             eval(ExprData::Integer(52).to_expr(), Env::new()).expect("Failed to evaluate"),
             ExprData::Integer(52).to_expr()
-        );
-    }
-
-    #[test]
-    fn evaluates_single_nil() {
-        assert_eq!(
-            eval(ExprData::nil().to_expr(), Env::new()).expect("Failed to evaluate"),
-            ExprData::nil().to_expr()
         );
     }
 
