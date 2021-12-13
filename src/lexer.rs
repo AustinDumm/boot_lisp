@@ -430,10 +430,7 @@ where I: Iterator<Item = char> {
     while let Some(character) = stream.next() {
         let next_char =
             match character {
-                '\"' => {
-                    stream.next();
-                    break
-                },
+                '\"' => break,
                 '\\' => lex_escape_string_character(stream)?,
                 other => other,
             };

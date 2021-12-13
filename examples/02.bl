@@ -1,0 +1,14 @@
+(define-macro require
+    (lambda (file-path)
+        `(begin ,@(read file-path))))
+
+(require "library/blib.bl")
+
+(define (factorial n)
+    (define (factorial n t)
+        (if (= n 1)
+            t
+            (factorial (- n 1) (* n t))))
+    (factorial n 1))
+
+(factorial 6)

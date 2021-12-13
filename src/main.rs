@@ -51,18 +51,10 @@ fn main() {
     let env = default_env::default_env();
     let mut macro_env = Env::new();
     let mut eval_pipeline = 
-        |input_string: String| -> Result<Vec<Option<Expr>>, BootLispError> {
+        |input_string: String| -> Result<Vec<Expr>, BootLispError> {
             parser::parse(lexer::lex(input_string)?)?.into_iter().map(
                 |expr| {
-                    let expanded = macro_expander::macro_expand(vec![expr], env.clone(), &mut macro_env);
-
-                    let mut last_expr: Option<Expr> = None;
-                    for expr in expanded {
-                        last_expr = Some(evaluator::eval(expr,
-                                                    env.clone())?);
-                    }
-
-                    Ok(last_expr)
+                    evaluator::eval(expr, env.clone(), &mut macro_env)
                 }).collect()
         };
 
@@ -88,9 +80,7 @@ fn main() {
                 io::stdin().read_line(&mut line).expect("Failure reading input");
 
                 for expr in eval_pipeline(line).unwrap() {
-                    if let Some(expr) = expr {
-                        println!("{}", expr);
-                    }
+                    println!("{}", expr);
                 }
             }
         }
@@ -100,9 +90,7 @@ fn main() {
                                         .parse()
                                         .expect("failed to parse file");
             for expr in eval_pipeline(program).expect("Failure evaluating") {
-                if let Some(expr) = expr {
-                    println!("{}", expr);
-                }
+                println!("{}", expr);
             }
         }
     }

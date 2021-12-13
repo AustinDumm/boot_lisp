@@ -8,21 +8,20 @@ use crate::evaluator;
 
 use crate::env::Env;
 
-pub fn macro_expand(exprs: Vec<Expr>, evaluation_env: Env, macro_env: &mut Env) -> Vec<Expr> {
-    let exprs = collect_macro_definitions(exprs, evaluation_env.clone(), macro_env);
-    let exprs: Vec<Expr> = exprs
-        .into_iter()
-        .map(|expr| {
-            expand_macro(expr, evaluation_env.clone(), macro_env)
-        })
-        .collect();
+pub fn macro_expand(expr: &Expr, evaluation_env: Env, macro_env: &mut Env) -> Option<Expr> {
+    let definition_found = collect_macro_definitions(&expr, evaluation_env.clone(), macro_env);
 
-    exprs
+    if definition_found {
+        Some(ExprData::Bool(false).to_expr())
+    } else {
+        expand_macro(expr, evaluation_env.clone(), macro_env)
+    }
 }
 
-fn expand_macro(expr: Expr, evaluation_env: Env, macro_env: &mut Env) -> Expr {
-    match expr.expr_data {
-        ExprData::List(mut iter) => {
+fn expand_macro(expr: &Expr, evaluation_env: Env, macro_env: &mut Env) -> Option<Expr> {
+    match &expr.expr_data {
+        ExprData::List(iter) => {
+            let mut iter = iter.clone();
             match iter.next() {
                 Some(Expr { expr_data: ExprData::Identifier(identifier) })
                     if macro_env.get(&identifier).is_some() => {
@@ -30,60 +29,43 @@ fn expand_macro(expr: Expr, evaluation_env: Env, macro_env: &mut Env) -> Expr {
                         let mut macro_list = vec![macro_lambda];
                         macro_list.extend(iter.map(|expr| { expr.quoted() }));
                         let macro_application = ExprData::List(macro_list.into_iter()).to_expr();
-                        let expanded_macro = evaluator::eval(macro_application, evaluation_env.clone()).unwrap();
-                        expand_macro(expanded_macro, evaluation_env, macro_env)
+                        let expanded_macro = evaluator::eval(macro_application, evaluation_env.clone(), macro_env).unwrap();
+                        Some(expanded_macro)
                     },
-                Some(expr) => {
-                    // No macro hit, recurse
-                    let mut result_list = vec![expand_macro(expr, evaluation_env.clone(), macro_env)];
-                    result_list.extend(iter.map(|expr| {
-                        expand_macro(expr, evaluation_env.clone(), macro_env)
-                    }));
-                    ExprData::List(result_list.into_iter()).to_expr()
-                },
-                None => {
-                    ExprData::List(vec![].into_iter()).to_expr()
+                _ => {
+                    None
                 }
             }
         },
         _ => {
-            expr
+            None
         }
     }
 }
 
-fn collect_macro_definitions(exprs: Vec<Expr>, evaluation_env: Env, macro_env: &mut Env) -> Vec<Expr> {
-    let mut non_macro_exprs: Vec<Expr> = vec![];
-    for expr in exprs {
-        match expr.expr_data {
-            ExprData::List(list_iter) => {
-                let mut iter = list_iter.clone();
-                match (iter.next(), iter.next()) {
-                    (Some(Expr { expr_data: ExprData::Identifier(macro_literal) }),
-                     Some(Expr { expr_data: ExprData::Identifier(macro_name) }))
-                        if macro_literal.as_str() == "define-macro" => {
-                            let expanded = macro_expand(vec![iter.next().unwrap()], evaluation_env.clone(), macro_env)[0].clone();
-                            let expr = evaluator::eval(expanded, evaluation_env.clone()).unwrap();
-                            match &expr.expr_data {
-                                ExprData::Lambda(_, _, _) => {
-                                    macro_env.create(macro_name, expr);
-                                },
-                                _ => panic!("define-macro must be given lambda as argument")
-                            }
-                        },
-                    _ => {
-                        non_macro_exprs.push(ExprData::List(list_iter).to_expr());
-                        continue
+fn collect_macro_definitions(expr: &Expr, evaluation_env: Env, macro_env: &mut Env) -> bool{
+    match &expr.expr_data {
+        ExprData::List(iter) => {
+            let mut iter = iter.clone();
+            match (iter.next(), iter.next()) {
+                (Some(Expr { expr_data: ExprData::Identifier(macro_literal) }),
+                 Some(Expr { expr_data: ExprData::Identifier(macro_name) }))
+                    if macro_literal.as_str() == "define-macro" => {
+                        let expr = evaluator::eval(iter.next().unwrap(), evaluation_env.clone(), macro_env).unwrap();
+                        match &expr.expr_data {
+                            ExprData::Lambda(_, _, _) => {
+                                macro_env.create(macro_name, expr);
+                                return true
+                            },
+                            other => panic!("define-macro must be given lambda as argument. Given: {}", other)
+                        }
                     }
-                }
+                _ => ()
             }
-            _ => {
-                non_macro_exprs.push(expr);
-                continue 
-            },
         }
+        _ => ()
     }
 
-    non_macro_exprs
+    false
 }
 

@@ -1,3 +1,7 @@
+(define-macro require
+    (lambda (file-path)
+        `(begin ,(read file-path))))
+
 (define-macro define
     (lambda (binding . value)
         (if (list? binding)

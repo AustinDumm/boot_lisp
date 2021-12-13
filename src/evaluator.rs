@@ -9,14 +9,14 @@ use crate::parser::{
     ExprData,
 };
 
-use crate::env::{
-    Env,
-};
+use crate::env::Env;
 
 use crate::call_stack::{
     StackFrame,
     CallStack,
 };
+
+use crate::macro_expander;
 
 type EvalResult = Result<Expr, BootLispError>;
 
@@ -24,7 +24,7 @@ type EvalResult = Result<Expr, BootLispError>;
 ///
 /// Evaluates iteratively rather than relying on host language's call stack in order to provide
 /// future support for first-class continuations
-pub fn eval(expr: Expr, env: Env) -> EvalResult {
+pub fn eval(expr: Expr, env: Env, macro_env: &mut Env) -> EvalResult {
     let mut call_stack = CallStack::new();
     let mut accumulator: Option<Expr> = None;
     let mut active_frame: Option<StackFrame> = Some(StackFrame::new(expr, env, vec![]));
@@ -156,7 +156,9 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
                                         rib));
                 } else {
                     // If the current frame expr is a list and the accumulator is None, we are ready to
-                    // evaluate the next item in the list.
+                    // macro expand then evaluate the next item in the list.
+                    // If the rib is empty:
+                    //      Check for a def-macro or for a macro expansion and define or expand
                     // If there is a "next" item:
                     //      If the first item is a function
                     //          Push the list into a stack frame and pass to the function to handle
@@ -175,6 +177,16 @@ pub fn eval(expr: Expr, env: Env) -> EvalResult {
                     //          Create a new frame containing the applicable's body and the new env
                     //          Set the active_frame to this new frame
                     //          Loop to continue evaluation
+                    if rib.len() == 0 {
+                        // Handle macro expansion checks
+                        if let Some(expanded_expr) =
+                            macro_expander::macro_expand(&ExprData::List(list.clone()).to_expr(), env.clone(), macro_env) {
+                            let new_frame = StackFrame::new(expanded_expr, env, rib);
+                            active_frame = Some(new_frame);
+                            continue
+                        }
+                    }
+
                     if let Some(Expr { expr_data: ExprData::Function(_, fn_ptr) }) = rib.first() {
                         let fn_ptr = fn_ptr.clone();
                         active_frame = Some(

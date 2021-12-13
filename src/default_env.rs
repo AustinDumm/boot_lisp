@@ -2,7 +2,12 @@
 use std::vec::IntoIter;
 use std::process;
 
+use std::fs;
+use std::path::Path;
+
+use crate::lexer;
 use crate::parser::{
+    self,
     Expr,
     ExprData,
 };
@@ -948,6 +953,26 @@ fn begin(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut 
                              })
 }
 
+fn read(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> { 
+    eval_arguments_and_apply(accumulator,
+                             frame,
+                             stack,
+                             |mut iter| {
+                                 if let (Some(Expr { expr_data: ExprData::StringLiteral(string) }), None) = (iter.next(), iter.next()) {
+                                     let path = Path::new(&string);
+                                     let file_contents = fs::read_to_string(path).expect("Failed to open file");
+                                     let result_expr =
+                                         parser::parse(
+                                             lexer::lex(file_contents).expect("Failed lexing file contents")
+                                         ).expect("Failed parsing file contents");
+
+                                     ExprData::List(result_expr.into_iter()).to_expr()
+                                 } else {
+                                     panic!("read must take only single argument");
+                                 }
+                             })
+}
+
 fn eval(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
     let env = frame.as_ref().unwrap().env.clone();
     eval_arguments(accumulator,
@@ -1058,6 +1083,7 @@ pub fn default_env() -> Env {
             ("create!".to_string(), ExprData::Function("create!".to_string(), create).to_expr()),
 
             ("begin".to_string(), ExprData::Function("begin".to_string(), begin).to_expr()),
+            ("read".to_string(), ExprData::Function("read".to_string(), read).to_expr()),
             ("eval".to_string(), ExprData::Function("eval".to_string(), eval).to_expr()),
             ("apply".to_string(), ExprData::Function("apply".to_string(), apply).to_expr()),
             ("exit".to_string(), ExprData::Function("exit".to_string(), exit).to_expr()),

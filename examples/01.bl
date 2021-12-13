@@ -1,0 +1,8 @@
+(define-macro require
+    (lambda (file-path)
+        `(begin ,@(read file-path))))
+
+(require "examples/01-include.bl")
+
+(testing 5 6)
+
