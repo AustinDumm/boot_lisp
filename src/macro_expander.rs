@@ -12,7 +12,7 @@ pub fn macro_expand(expr: &Expr, evaluation_env: Env, macro_env: &mut Env) -> Op
     let definition_found = collect_macro_definitions(&expr, evaluation_env.clone(), macro_env);
 
     if definition_found {
-        Some(ExprData::Bool(false).to_expr())
+        Some(ExprData::Void.to_expr())
     } else {
         expand_macro(expr, evaluation_env.clone(), macro_env)
     }

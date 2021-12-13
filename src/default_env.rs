@@ -469,6 +469,19 @@ fn build_lambda(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack
     }
 }
 
+fn build_void(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_apply(accumulator,
+                             frame,
+                             stack,
+                             |mut iter| {
+                                 if iter.next().is_none() {
+                                     ExprData::Void.to_expr()
+                                 } else {
+                                     panic!("void function takes no arguments to create void value")
+                                 }
+                             })
+}
+
 //=============== Conditional Evaluation ===============
 
 fn if_impl(_accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
@@ -765,6 +778,22 @@ fn unquote_splicing(_accumulator: &mut Option<Expr>, _frame: Option<StackFrame>,
 
 //=============== Type Checking ===============
 
+fn is_void(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_apply(accumulator,
+                             frame,
+                             stack,
+                             |mut iter| {
+                                 if let (Some(expr), None) = (iter.next(), iter.next()) {
+                                     match expr.expr_data {
+                                         ExprData::Void => ExprData::Bool(true),
+                                         _ => ExprData::Bool(false),
+                                     }.to_expr()
+                                 } else {
+                                     panic!("is_bool expects only one argument")
+                                 }
+                             })
+}
+
 fn is_bool(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
     eval_arguments_and_apply(accumulator,
                              frame,
@@ -929,7 +958,7 @@ fn create(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut
                                                    Some(expr),
                                                    None) = (iter.next(), iter.next(), iter.next()) {
                                                env.create(identifier, expr);
-                                               ExprData::Bool(true).to_expr()
+                                               ExprData::Void.to_expr()
                                            } else {
                                                panic!("Unexpected argument list passed to create!")
                                            }
@@ -1065,6 +1094,8 @@ pub fn default_env() -> Env {
             ("list".to_string(), ExprData::Function("list".to_string(), list_impl).to_expr()),
             ("append".to_string(), ExprData::Function("append".to_string(), append_impl).to_expr()),
 
+
+            ("void?".to_string(), ExprData::Function("void?".to_string(), is_void).to_expr()),
             ("bool?".to_string(), ExprData::Function("bool?".to_string(), is_bool).to_expr()),
             ("integer?".to_string(), ExprData::Function("integer?".to_string(), is_integer).to_expr()),
             ("identifier?".to_string(), ExprData::Function("identifier?".to_string(), is_identifier).to_expr()),
@@ -1089,6 +1120,7 @@ pub fn default_env() -> Env {
             ("exit".to_string(), ExprData::Function("exit".to_string(), exit).to_expr()),
 
             ("lambda".to_string(), ExprData::Function("lambda".to_string(), build_lambda).to_expr()),
+            ("void".to_string(), ExprData::Function("void".to_string(), build_void).to_expr()),
             ("if".to_string(), ExprData::Function("if".to_string(), if_impl).to_expr()),
 
             ("nil".to_string(), ExprData::nil().to_expr()),

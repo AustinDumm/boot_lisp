@@ -46,6 +46,13 @@ pub fn eval(expr: Expr, env: Env, macro_env: &mut Env) -> EvalResult {
             // frame's value up to the previous frame for further use
             Some(
                 StackFrame {
+                    expr: Expr { expr_data: ExprData::Void },
+                    env: _,
+                    rib: _,
+                }
+            ) |
+            Some(
+                StackFrame {
                     expr: Expr { expr_data: ExprData::Bool(_) },
                     env: _,
                     rib: _,

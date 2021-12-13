@@ -80,7 +80,7 @@ fn main() {
                 io::stdin().read_line(&mut line).expect("Failure reading input");
 
                 for expr in eval_pipeline(line).unwrap() {
-                    println!("{}", expr);
+                    print!("{}", expr);
                 }
             }
         }
@@ -90,7 +90,7 @@ fn main() {
                                         .parse()
                                         .expect("failed to parse file");
             for expr in eval_pipeline(program).expect("Failure evaluating") {
-                println!("{}", expr);
+                print!("{}", expr);
             }
         }
     }
