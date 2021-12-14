@@ -43,6 +43,11 @@ fn clap_args() -> ArgMatches {
              .takes_value(true)
              .multiple_values(true)
              .use_delimiter(true))
+        .arg(Arg::new("standard_library")
+             .long("standard-library")
+             .takes_value(true)
+             .multiple_values(false)
+             .default_value("./library/blib.bl"))
         .get_matches()
 }
 
@@ -58,6 +63,9 @@ fn main() {
                 }).collect()
         };
 
+    let standard_library = fs::read_to_string(matches.value_of("standard_library").unwrap()).expect("Failed to read standard library");
+    eval_pipeline(standard_library).expect("Failure loading standard library");
+
     match matches.values_of("libraries") {
         None => (),
         Some(library_files) => {
@@ -70,7 +78,7 @@ fn main() {
             }
         }
     }
-
+    
     match matches.value_of("file") {
         None => {
             loop {
