@@ -74,7 +74,10 @@ pub enum ExprData {
 
 impl std::fmt::Debug for ExprData {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self)
+        match self {
+            ExprData::Void => write!(f, "<type: void>"),
+            _ => write!(f, "{}", self),
+        }
     }
 }
 
@@ -82,15 +85,15 @@ impl std::fmt::Display for ExprData {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         use ExprData::*;
         match self {
-            Void => return write!(f, ""),
-            Bool(true) => "#t".fmt(f)?,
-            Bool(false) => "#f".fmt(f)?,
-            Integer(ref i) => i.fmt(f)?,
-            Character(ref c) => write!(f, "#\\{}", c)?,
-            StringLiteral(ref s) => write!(f, "\"{}\"", s)?,
-            Identifier(ref s) => s.fmt(f)?,
-            Lambda(_, _, _) => write!(f, "<Lambda>")?,
-            Function(name, _) => write!(f, "<Built-In Function: {}>", name)?,
+            Void => write!(f, ""),
+            Bool(true) => "#t".fmt(f),
+            Bool(false) => "#f".fmt(f),
+            Integer(ref i) => i.fmt(f),
+            Character(ref c) => write!(f, "#\\{}", c),
+            StringLiteral(ref s) => write!(f, "\"{}\"", s),
+            Identifier(ref s) => s.fmt(f),
+            Lambda(_, _, _) => write!(f, "<Lambda>"),
+            Function(name, _) => write!(f, "<Built-In Function: {}>", name),
             List(ref iter) => {
                 let count = iter.clone().count();
                 write!(f, "(")?;
@@ -101,17 +104,16 @@ impl std::fmt::Display for ExprData {
                         write!(f, " ")?;
                     }
                 }
-                write!(f, ")")?
+                write!(f, ")")
             },
             DottedList(ref iter, ref e) => {
                 write!(f, "(")?;
                 for item in iter.clone() {
                     write!(f, "{} ", item)?;
                 }
-                write!(f, ". {})", e)?
+                write!(f, ". {})", e)
             },
-        };
-        "\n".fmt(f)
+        }
     }
 }
 

@@ -630,7 +630,7 @@ fn append_impl(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack:
             if let ExprData::List(iter) = next_expr.expr_data {
                 append_vec.extend(iter);
             } else {
-                panic!("Non-list provided as non-last element to append")
+                panic!("Non-list provided as non-last element to append: {}", next_expr.expr_data)
             }
         }
 

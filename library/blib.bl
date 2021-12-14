@@ -1,6 +1,6 @@
 (define-macro require
     (lambda (file-path)
-        `(begin ,(read file-path))))
+        `(begin ,@(read file-path))))
 
 (define-macro define
     (lambda (binding . value)
@@ -8,63 +8,6 @@
             `(create! ,(first binding) (lambda ,(rest binding) (begin ,@value)))
             `(create! ,binding ,value))))
 
-(define (zip . lists)
-    (apply map list lists))
+(require "library/bmac.bl")
+(require "library/butl.bl")
 
-(define (map f elts . elts*)
-    (if (empty? elts)
-        '()
-        (cons (apply f (first elts) (map first elts*))
-              (apply map f (rest elts) (map rest elts*)))))
-
-(define (reduce f elts)
-    (define (reduce-impl f running elts)
-        (if (empty? elts)
-            running
-            (reduce-impl f (f running (first elts)) (rest elts))))
-    (reduce-impl f (first elts) (rest elts)))
-
-(define-macro let
-    (lambda (bindings . body)
-        (apply (lambda (arg-list values-list)
-            `((lambda ,arg-list (begin ,@body)) ,@values-list))
-         (apply zip bindings))))
-
-(define-macro let*
-    (lambda (bindings . body)
-        (begin
-            (define (build-lambda args values)
-                (if (and (nil? args) (nil? values))
-                    `(begin ,@body)
-                    `((lambda (,(first args))
-                        ,(build-lambda (rest args) (rest values))) ,(first values))))
-           (apply build-lambda (apply zip bindings)))))
-
-(define-macro letrec
-    (lambda (bindings . body)
-        (begin
-            (define (build-set-list bindings)
-                (if (and (list? bindings) (nil? bindings))
-                    '()
-                    (cons `(set! ,@(first bindings)) (build-set-list (rest bindings)))))
-            (apply (lambda (args-list values-list)
-                `((lambda ,args-list
-                    (begin
-                        ,@(build-set-list bindings)
-                        ,@body)) ,@values-list))
-                   (apply zip bindings)))))
-
-(define-macro cond
-    (lambda condition-list
-        (begin 
-            (define (build-cond condition-list)
-                (if (nil? condition-list)
-                    '()
-                    (let* ((condition (first condition-list))
-                           (conditional (first condition))
-                           (result (first (rest condition))))
-                        `(if ,conditional
-                             ,result
-                             ,(build-cond (rest condition-list))))))
-            (build-cond condition-list))))
-        
