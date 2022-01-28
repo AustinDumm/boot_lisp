@@ -70,6 +70,7 @@ pub enum ExprData {
     Function(String, fn(&mut Option<Expr>, Option<StackFrame>, &mut CallStack) -> Option<StackFrame>),
     List(IntoIter<Expr>),
     DottedList(IntoIter<Expr>, Box<Expr>),
+    Continuation(CallStack),
 }
 
 impl std::fmt::Debug for ExprData {
@@ -113,6 +114,7 @@ impl std::fmt::Display for ExprData {
                 }
                 write!(f, ". {})", e)
             },
+            Continuation(ref s) => write!(f, "#\\{:?}", s),
         }
     }
 }

@@ -92,6 +92,13 @@ pub fn eval(expr: Expr, env: Env, macro_env: &mut Env) -> EvalResult {
                     env: _,
                     rib: _
                 }
+            ) |
+            Some(
+                StackFrame {
+                    expr: Expr { expr_data: ExprData::Continuation(_) },
+                    env: _,
+                    rib: _,
+                }
             ) => {
                 accumulator = Some(active_frame.unwrap().expr);
                 active_frame = call_stack.pop_frame();
@@ -177,13 +184,20 @@ pub fn eval(expr: Expr, env: Env, macro_env: &mut Env) -> EvalResult {
                     //      Else, we have no items left in the list
                     //          Handle lambda evaluation
                     // If there is no next item in the list:
-                    //      Execute function application:
-                    //          Retrieve first item as the applicable
-                    //          Create a new env extending the applicable's environment with the bindings
-                    //              from the applicable and the remaining rib exprs
-                    //          Create a new frame containing the applicable's body and the new env
-                    //          Set the active_frame to this new frame
-                    //          Loop to continue evaluation
+                    //      If the first item is a lambda:
+                    //          Execute function application:
+                    //              Retrieve first item as the applicable
+                    //              Create a new env extending the applicable's environment with the bindings
+                    //                  from the applicable and the remaining rib exprs
+                    //              Create a new frame containing the applicable's body and the new env
+                    //              Set the active_frame to this new frame
+                    //              Loop to continue evaluation
+                    //      Else, if the first item is a continuation:
+                    //          Execute continuation installation:
+                    //              Append the continuation's call stack to this existing call stack
+                    //              Pop call stack and place frame as current active frame
+                    //              Place the argument passed to the continuation in the accumulator
+                    //
                     if rib.len() == 0 {
                         // Handle macro expansion checks
                         if let Some(expanded_expr) =
@@ -215,9 +229,18 @@ pub fn eval(expr: Expr, env: Env, macro_env: &mut Env) -> EvalResult {
                         let mut rib_iter = rib.into_iter();
                         let expr = rib_iter.next();
                         if let Some(Expr { expr_data: ExprData::Lambda(args, body, closure_env) }) = expr {
-                                let new_env = closure_env.extend((*args).clone(), 
-                                                                 ExprData::List(rib_iter).to_expr());
-                                active_frame = Some(StackFrame::new(*body, new_env, vec![]));
+                            let new_env = closure_env.extend((*args).clone(), 
+                                                             ExprData::List(rib_iter).to_expr());
+                            active_frame = Some(StackFrame::new(*body, new_env, vec![]));
+                        } else if let Some(Expr { expr_data: ExprData::Continuation(continuation_stack) }) = expr {
+                            if let (Some(argument), None) = (rib_iter.next(), rib_iter.next()) {
+                                call_stack.append(continuation_stack);
+                                active_frame = call_stack.pop_frame();
+                                accumulator = Some(argument);
+                            } else {
+                                return Err(BootLispError::new(ErrorType::Eval,
+                                                              "Incorrect number of arguments provided to continuation"))
+                            }
                         } else {
                             return Err(BootLispError::new(ErrorType::Eval,
                                                           &format!("Application attempted with non-applicable first element in list. Found: {:?}", expr)));

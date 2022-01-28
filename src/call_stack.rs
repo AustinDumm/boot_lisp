@@ -16,7 +16,7 @@ use crate::env::{
 /// - rib
 ///     - Stores intermediate evaluations of list elements in preparation for application and
 ///     evaluation of functions
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StackFrame {
     pub expr: Expr,
     pub env: Env,
@@ -30,6 +30,7 @@ impl StackFrame {
 }
 
 /// Holds a stack data structure of StackFrames used to sequence evaluation of nested expressions
+#[derive(Debug, Clone)]
 pub struct CallStack {
     stack: Vec<StackFrame>
 }
@@ -45,6 +46,12 @@ impl CallStack {
 
     pub fn push_frame(&mut self, frame: StackFrame) {
         self.stack.push(frame)
+    }
+
+    pub fn append(&mut self, stack: CallStack) {
+        for frame in stack.stack.into_iter().rev() {
+            self.stack.push(frame);
+        }
     }
 }
 
