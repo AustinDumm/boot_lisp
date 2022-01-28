@@ -10,6 +10,7 @@ use super::quote_functions::*;
 use super::type_functions::*;
 use super::env_functions::*;
 use super::eval_functions::*;
+use super::continuation_functions::*;
 
 use crate::parser::ExprData;
 
@@ -74,6 +75,9 @@ pub fn default_env() -> Env {
             ("lambda".to_string(), ExprData::Function("lambda".to_string(), build_lambda).to_expr()),
             ("void".to_string(), ExprData::Function("void".to_string(), build_void).to_expr()),
             ("if".to_string(), ExprData::Function("if".to_string(), if_impl).to_expr()),
+
+            ("prompt".to_string(), ExprData::Function("prompt".to_string(), prompt).to_expr()),
+            ("call-with-control".to_string(), ExprData::Function("call-with-control".to_string(), call_with_control).to_expr()),
 
             ("nil".to_string(), ExprData::nil().to_expr()),
         ].into_iter().collect()

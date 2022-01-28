@@ -17,7 +17,7 @@ use crate::call_stack::{
 
 use crate::env::Env;
 
-use crate::default_env;
+use crate::default_env::quote_functions;
 
 /// Enum type holding all different options for expressions in boot lisp.
 /// - Integer
@@ -202,7 +202,7 @@ impl Expr {
     pub fn quoted(self) -> Expr {
         ExprData::List(
             vec![
-                ExprData::Function("quote".to_string(), default_env::quote).to_expr(),
+                ExprData::Function("quote".to_string(), quote_functions::quote).to_expr(),
                 self
             ].into_iter()).to_expr()
     }

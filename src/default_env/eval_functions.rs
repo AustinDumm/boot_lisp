@@ -59,11 +59,10 @@ pub fn eval(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &m
                    stack,
                    |_, mut iter, _| {
                        if let (Some(expr), None) = (iter.next(), iter.next()) {
-                           Some(StackFrame {
+                           Some(StackFrame::new(
                                     expr,
                                     env, 
-                                    rib: vec![]
-                           })
+                                    vec![]))
                        } else {
                            panic!("Incorrect number of arguments provided to eval. Expected 1")
                        }
@@ -90,9 +89,9 @@ pub fn apply(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &
                            }
                        }
 
-                       Some(StackFrame { expr: ExprData::List(vec![].into_iter()).to_expr(),
-                                         env,
-                                         rib: new_list })
+                       Some(StackFrame::new(ExprData::List(vec![].into_iter()).to_expr(),
+                                            env,
+                                            new_list))
                    })
 }
 

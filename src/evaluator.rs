@@ -49,6 +49,7 @@ pub fn eval(expr: Expr, env: Env, macro_env: &mut Env) -> EvalResult {
                     expr: Expr { expr_data: ExprData::Void },
                     env: _,
                     rib: _,
+                    is_prompt: _,
                 }
             ) |
             Some(
@@ -56,13 +57,15 @@ pub fn eval(expr: Expr, env: Env, macro_env: &mut Env) -> EvalResult {
                     expr: Expr { expr_data: ExprData::Bool(_) },
                     env: _,
                     rib: _,
+                    is_prompt: _,
                 }
             ) |
             Some(
                 StackFrame {
                     expr: Expr { expr_data: ExprData::Integer(_) }, 
                     env: _, 
-                    rib: _ 
+                    rib: _,
+                    is_prompt: _,
                 }
             ) |
             Some(
@@ -70,6 +73,7 @@ pub fn eval(expr: Expr, env: Env, macro_env: &mut Env) -> EvalResult {
                     expr: Expr { expr_data: ExprData::Character(_) },
                     env: _,
                     rib: _,
+                    is_prompt: _,
                 }
             ) |
             Some(
@@ -77,20 +81,23 @@ pub fn eval(expr: Expr, env: Env, macro_env: &mut Env) -> EvalResult {
                     expr: Expr { expr_data: ExprData::StringLiteral(_) },
                     env: _,
                     rib: _,
+                    is_prompt: _,
                 }
             ) |
             Some(
                 StackFrame {
                     expr: Expr { expr_data: ExprData::Lambda(_, _, _) },
                     env: _,
-                    rib: _
+                    rib: _,
+                    is_prompt: _,
                 }
             ) |
             Some(
                 StackFrame {
                     expr: Expr { expr_data: ExprData::Function(_, _) },
                     env: _,
-                    rib: _
+                    rib: _,
+                    is_prompt: _,
                 }
             ) |
             Some(
@@ -98,6 +105,7 @@ pub fn eval(expr: Expr, env: Env, macro_env: &mut Env) -> EvalResult {
                     expr: Expr { expr_data: ExprData::Continuation(_) },
                     env: _,
                     rib: _,
+                    is_prompt: _,
                 }
             ) => {
                 accumulator = Some(active_frame.unwrap().expr);
@@ -112,7 +120,8 @@ pub fn eval(expr: Expr, env: Env, macro_env: &mut Env) -> EvalResult {
                 StackFrame {
                     expr: Expr { expr_data: ExprData::Identifier(name) },
                     env,
-                    rib: _
+                    rib: _,
+                    is_prompt: _,
                 }
             ) => {
                 if let Some(expr) = env.get(&name) {
@@ -133,14 +142,14 @@ pub fn eval(expr: Expr, env: Env, macro_env: &mut Env) -> EvalResult {
                     expr: Expr { expr_data: ExprData::DottedList(list, end) },
                     env,
                     rib,
+                    is_prompt: _,
                 }
             ) => {
                 if end.expr_data == ExprData::List(vec![].into_iter()) {
-                    active_frame = Some(StackFrame {
-                                            expr: ExprData::List(list).to_expr(),
+                    active_frame = Some(StackFrame::new(
+                                            ExprData::List(list).to_expr(),
                                             env,
-                                            rib
-                    });
+                                            rib));
                 } else {
                     return Err(BootLispError::new(ErrorType::Eval,
                                                   "Cannot evaluate dotted list"));
@@ -153,7 +162,8 @@ pub fn eval(expr: Expr, env: Env, macro_env: &mut Env) -> EvalResult {
                 StackFrame {
                     expr: Expr { expr_data: ExprData::List(mut list) },
                     env,
-                    mut rib 
+                    mut rib,
+                    is_prompt: _,
                 }
             ) => {
                 if let Some(acc_expr) = accumulator {

@@ -16,16 +16,27 @@ use crate::env::{
 /// - rib
 ///     - Stores intermediate evaluations of list elements in preparation for application and
 ///     evaluation of functions
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct StackFrame {
     pub expr: Expr,
     pub env: Env,
     pub rib: Vec<Expr>,
+    pub is_prompt: bool,
 }
 
 impl StackFrame {
     pub fn new(expr: Expr, env: Env, rib: Vec<Expr>) -> StackFrame {
-        StackFrame { expr, env, rib }
+        StackFrame { expr, env, rib, is_prompt: false }
+    }
+
+    pub fn new_prompt_frame(expr: Expr, env: Env, rib: Vec<Expr>) -> StackFrame {
+        StackFrame { expr, env, rib, is_prompt: true }
+    }
+}
+
+impl std::fmt::Debug for StackFrame {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        writeln!(f, "Frame:\n\texpr:{}\n\trib:{:?}\n\tis_prompt:{}", self.expr, self.rib, self.is_prompt)
     }
 }
 
@@ -40,6 +51,10 @@ impl CallStack {
         CallStack { stack: vec![] }
     }
 
+    pub fn from(stack: Vec<StackFrame>) -> CallStack {
+        CallStack { stack }
+    }
+
     pub fn pop_frame(&mut self) -> Option<StackFrame> {
         self.stack.pop()
     }
@@ -49,7 +64,7 @@ impl CallStack {
     }
 
     pub fn append(&mut self, stack: CallStack) {
-        for frame in stack.stack.into_iter().rev() {
+        for frame in stack.stack {
             self.stack.push(frame);
         }
     }
