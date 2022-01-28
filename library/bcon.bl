@@ -1,0 +1,12 @@
+(define reset prompt)
+
+(define (call-with-shift f)
+    (call-with-control (lambda (k) (f (lambda (arg) (reset (k arg)))))))
+
+(define-macro control 
+    (lambda (cont-identifier body)
+        `(call-with-control (lambda (,cont-identifier) ,body))))
+
+(define-macro shift 
+    (lambda (cont-identifier body)
+        `(call-with-shift (lambda (,cont-identifier) ,body))))

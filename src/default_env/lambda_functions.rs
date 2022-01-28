@@ -1,5 +1,8 @@
 
-use super::env_utilities::*;
+use super::{
+    env_utilities::*,
+    eval_functions,
+};
 use crate::parser::{
     Expr,
     ExprData,
@@ -16,9 +19,14 @@ pub fn build_lambda(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, s
         match active_frame.expr.expr_data {
             ExprData::List(mut iter) => {
                 let args_list = iter.next().unwrap();
-                let body = iter.next().unwrap();
+                let body_iter = iter;
+                let body = vec![ExprData::Function("begin".to_string(), eval_functions::begin).to_expr()]
+                    .into_iter()
+                    .chain(body_iter)
+                    .collect::<Vec<Expr>>()
+                    .into_iter();
                 *accumulator = Some(ExprData::Lambda(Box::new(args_list),
-                                                     Box::new(body),
+                                                     Box::new(ExprData::List(body).to_expr()),
                                                      active_frame.env.clone()).to_expr());
                 stack.pop_frame()
             },

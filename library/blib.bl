@@ -5,9 +5,10 @@
 (define-macro define
     (lambda (binding . value)
         (if (list? binding)
-            `(create! ,(first binding) (lambda ,(rest binding) (begin ,@value)))
-            `(create! ,binding ,value))))
+            `(create! ,(first binding) (lambda ,(rest binding) ,@value))
+            `(create! ,binding ,(first value)))))
 
 (require "library/bmac.bl")
 (require "library/butl.bl")
+(require "library/bcon.bl")
 
