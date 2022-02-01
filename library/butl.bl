@@ -14,3 +14,29 @@
             (reduce-impl f (f running (first elts)) (rest elts))))
     (reduce-impl f (first elts) (rest elts)))
 
+(define (pick index items)
+    (if (= index 0)
+        (first items)
+        (if (empty? (rest items))
+            (void)
+            (pick (- index 1) (rest items)))))
+
+(define-macro cond
+    (lambda cond-list
+        (let* ((cond-item (first cond-list))
+               (cond-rest (rest cond-list))
+               (if-condition (pick 0 cond-item))
+               (is-else (eq? if-condition 'else))
+               (is-last (empty? cond-rest))
+               (if-condition (if is-else
+                                 #t
+                                 if-condition))
+               (if-true (pick 1 cond-item))
+               (if-false (if (or is-else is-last)
+                             (void)
+                             `(cond ,@cond-rest))))
+            `(if ,if-condition
+                 ,if-true
+                 ,if-false))))
+            
+

@@ -70,3 +70,12 @@ pub fn eq(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut
                                })
 }
 
+pub fn equality(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    eval_arguments_and_compare(accumulator,
+                               frame,
+                               stack,
+                               |lhs, rhs| {
+                                   lhs == rhs
+                               })
+}
+

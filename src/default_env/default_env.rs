@@ -42,6 +42,8 @@ pub fn default_env() -> Env {
             (">=".to_string(), ExprData::Function(">=".to_string(), geq).to_expr()),
             ("=".to_string(), ExprData::Function("=".to_string(), eq).to_expr()),
 
+            ("eq?".to_string(), ExprData::Function("eq?".to_string(), equality).to_expr()),
+
             ("cons".to_string(), ExprData::Function("cons".to_string(), cons).to_expr()),
             ("first".to_string(), ExprData::Function("first".to_string(), first).to_expr()),
             ("rest".to_string(), ExprData::Function("rest".to_string(), rest).to_expr()),
