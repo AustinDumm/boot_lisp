@@ -29,16 +29,21 @@
                    (apply zip bindings)))))
 
 (define-macro cond
-    (lambda condition-list
-        (begin 
-            (define (build-cond condition-list)
-                (if (nil? condition-list)
-                    '()
-                    (let* ((condition (first condition-list))
-                           (conditional (first condition))
-                           (result (first (rest condition))))
-                        `(if ,conditional
-                             ,result
-                             ,(build-cond (rest condition-list))))))
-            (build-cond condition-list))))
+    (lambda cond-list
+        (if (empty? cond-list)
+            (void)
+            (let* ((cond-item (first cond-list))
+                   (cond-rest (rest cond-list))
+                   (if-condition (pick 0 cond-item))
+                   (is-else (eq? if-condition 'else))
+                   (if-condition (if is-else
+                                     #t
+                                     if-condition))
+                   (if-true (pick 1 cond-item))
+                   (if-false (if is-else
+                                 (void)
+                                 `(cond ,@cond-rest))))
+                `(if ,if-condition
+                     ,if-true
+                     ,if-false)))))
 
