@@ -156,7 +156,7 @@ impl Env {
                                 })
                                 .zip(raw_values.into_iter()).collect()
                         } else {
-                            panic!("Attempt to bind with unmatching list length");
+                            panic!("Attempt to bind with unmatching list length: {:?}", raw_bindings);
                         }
                     },
                     (ExprData::DottedList(raw_bindings, final_binding), ExprData::List(raw_values)) => {

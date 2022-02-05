@@ -1,0 +1,39 @@
+
+
+(define-macro match
+    (lambda expr match-list
+        (define (expand-match match-expr)
+            (define (expand-match match-expr bound-identifiers)
+                (cond ((identifier? match-expr)
+                        (if (contains? match-expr bound-identifiers)
+                            `((match-equivalent ,match-expr) . ,bound-identifiers)
+                            `((match-bind ,match-expr) . (,match-expr ,@bound-identifiers))))
+                      ((nil? match-expr)
+                        `((match-literal ,match-expr) . ,bound-identifiers))
+                      ((list? match-expr)
+                        (let* ((first-pair (expand-match (first match-expr) bound-identifiers))
+                               (first-result (first first-pair))
+                               (bound-identifiers (rest first-pair))
+                               (second-pair (expand-match (rest match-expr) bound-identifiers))
+                               (second-result (first second-pair))
+                               (bound-identifiers (rest second-pair)))
+                            `((match-cons ,first-result ,second-result) . ,bound-identifiers)))
+                      (else
+                        `((match-literal ,match-expr) . ,bound-identifiers))))
+            (first (expand-match match-expr '())))
+
+        (if (empty? match-list)
+            (void)
+            (let* ((first-match (first match-list))
+                   (match-structure (pick 0 first-match))
+                   (match-success-expr (pick 1 first-match))
+                   (rest-match (rest match-list))
+                   (expanded-match (expand-match match-expr))
+                   (match-binding-expr (build-match-binding expr expanded-match match-success-expr)))
+                `(let* ((match-result (match-binding-expr))
+                        (match-success (first match-result))
+                        (match-expr (rest match-result))
+                    (if match-success
+                        match-expr
+                        (match ,expr ,rest-match))))))))
+

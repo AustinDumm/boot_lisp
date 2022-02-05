@@ -14,6 +14,14 @@
             (reduce-impl f (f running (first elts)) (rest elts))))
     (reduce-impl f (first elts) (rest elts)))
 
+(define (contains-where? f elts)
+    (cond ((empty? elts) #f)
+          ((f (first elts)) #t)
+          (else (contains-where? f (rest elts)))))
+
+(define (contains? elt elts)
+    (contains-where? (lambda (item) (eq? item elt)) elts))
+
 (define (pick index items)
     (if (= index 0)
         (first items)

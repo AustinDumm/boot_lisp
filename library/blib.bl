@@ -11,4 +11,5 @@
 (require "library/bmac.bl")
 (require "library/butl.bl")
 (require "library/bcon.bl")
+(require "library/bmat.bl")
 
