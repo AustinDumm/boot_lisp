@@ -1,5 +1,4 @@
 
-
 (define-macro match
     (lambda expr match-list
         (define (expand-match match-expr)
@@ -21,6 +20,18 @@
                       (else
                         `((match-literal ,match-expr) . ,bound-identifiers))))
             (first (expand-match match-expr '())))
+
+        (define (build-match-binding expr expanded-match match-success-expr)
+            (let ((match-type (pick 0 expanded-match))
+                  (match-expr (pick 1 expanded-match)))
+                (cond ((eq? 'match-cons match-type)
+                        (build-match-cons expr match-expr match-success-expr))
+                      ((eq? 'match-literal match-type)
+                        (build-match-literal expr match-expr match-success-expr))
+                      ((eq? 'match-bind match-type)
+                        (build-match-bind expr match-expr match-success-expr))
+                      ((eq? 'match-equivalent match-type)
+                        (build-match-equivalent match-expr match-success-expr)))))
 
         (if (empty? match-list)
             (void)
