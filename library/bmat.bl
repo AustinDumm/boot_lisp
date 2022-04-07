@@ -1,6 +1,24 @@
-
+(define (expand-match match-expr)
+            (define (expand-match match-expr bound-identifiers)
+                (cond ((identifier? match-expr)
+                        (if (contains? match-expr bound-identifiers)
+                            `((match-equivalent ,match-expr) . ,bound-identifiers)
+                            `((match-bind ,match-expr) . (,match-expr ,@bound-identifiers))))
+                      ((nil? match-expr)
+                        `((match-literal ,match-expr) . ,bound-identifiers))
+                      ((list? match-expr)
+                        (let* ((first-pair (expand-match (first match-expr) bound-identifiers))
+                               (first-result (first first-pair))
+                               (bound-identifiers (rest first-pair))
+                               (second-pair (expand-match (rest match-expr) bound-identifiers))
+                               (second-result (first second-pair))
+                               (bound-identifiers (rest second-pair)))
+                            `((match-cons ,first-result ,second-result) . ,bound-identifiers)))
+                      (else
+                        `((match-literal ,match-expr) . ,bound-identifiers))))
+            (first (expand-match match-expr '())))
 (define-macro match
-    (lambda expr match-list
+    (lambda (expr . match-list)
         (define (expand-match match-expr)
             (define (expand-match match-expr bound-identifiers)
                 (cond ((identifier? match-expr)
@@ -22,29 +40,52 @@
             (first (expand-match match-expr '())))
 
         (define (build-match-binding expr expanded-match match-success-expr)
-            (let ((match-type (pick 0 expanded-match))
-                  (match-expr (pick 1 expanded-match)))
+            (let ((match-type (first expanded-match))
+                  (match-expr (rest expanded-match)))
                 (cond ((eq? 'match-cons match-type)
                         (build-match-cons expr match-expr match-success-expr))
                       ((eq? 'match-literal match-type)
-                        (build-match-literal expr match-expr match-success-expr))
+                        (build-match-literal expr (first match-expr) match-success-expr))
                       ((eq? 'match-bind match-type)
-                        (build-match-bind expr match-expr match-success-expr))
+                        (build-match-bind expr (first match-expr) match-success-expr))
                       ((eq? 'match-equivalent match-type)
-                        (build-match-equivalent match-expr match-success-expr)))))
+                        (build-match-equivalent expr (first match-expr) match-success-expr)))))
 
-        (if (empty? match-list)
+        (define (build-match-cons expr match-expr match-success-expr)
+            (let ((match-first (pick 0 match-expr))
+                  (match-rest (pick 1 match-expr)))
+                `(if (list? ,expr)
+                     ,(build-match-binding `(first ,expr) match-first
+                        (build-match-binding `(rest ,expr) match-rest match-success-expr))
+                     'match-failure)))
+
+        (define (build-match-literal expr match-expr match-success-expr)
+            `(if (eq? ,expr ',match-expr)
+                ,match-success-expr
+                'match-failure))
+
+        (define (build-match-bind expr match-expr match-success-expr)
+            `(let ((,match-expr ,expr))
+                ,match-success-expr))
+
+        (define (build-match-equivalent expr match-expr match-success-expr)
+            `(if (eq? ,expr ,match-expr)
+                ,match-success-expr
+                'match-failure))
+
+        (if (or (empty? match-list) (not (list? match-list)))
             (void)
             (let* ((first-match (first match-list))
                    (match-structure (pick 0 first-match))
                    (match-success-expr (pick 1 first-match))
                    (rest-match (rest match-list))
-                   (expanded-match (expand-match match-expr))
+                   (expanded-match (expand-match match-structure))
                    (match-binding-expr (build-match-binding expr expanded-match match-success-expr)))
-                `(let* ((match-result (match-binding-expr))
-                        (match-success (first match-result))
-                        (match-expr (rest match-result))
+                `(let* ((match-result ,match-binding-expr)
+                        (match-success (not (eq? 'match-failure match-result))))
                     (if match-success
-                        match-expr
-                        (match ,expr ,rest-match))))))))
+                        match-result
+                        ,(if (empty? rest-match)
+                             (void)
+                             `(match ,expr ,@rest-match))))))))
 

@@ -44,7 +44,7 @@ pub fn first(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &
                                              ExprData::DottedList(mut iter, _) => {
                                              iter.next().expect("No item found in list while evaluating 'first'")
                                          },
-                                         _ => panic!("'first' must be given list")
+                                         item => panic!("'first' must be given list. Found: {}", item)
                                      }
                                  } else {
                                      panic!("Invalid number of arguments provided to first. Requires 1")
