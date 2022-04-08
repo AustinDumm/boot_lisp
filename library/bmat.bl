@@ -53,10 +53,14 @@
 
         (define (build-match-cons expr match-expr match-success-expr)
             (let ((match-first (pick 0 match-expr))
-                  (match-rest (pick 1 match-expr)))
+                  (match-rest (pick 1 match-expr))
+                  (first-sym (gensym))
+                  (rest-sym (gensym)))
                 `(if (list? ,expr)
-                     ,(build-match-binding `(first ,expr) match-first
-                        (build-match-binding `(rest ,expr) match-rest match-success-expr))
+                     (let ((,first-sym (first ,expr))
+                           (,rest-sym (rest ,expr)))
+                         ,(build-match-binding first-sym match-first
+                            (build-match-binding rest-sym match-rest match-success-expr)))
                      'match-failure)))
 
         (define (build-match-literal expr match-expr match-success-expr)
