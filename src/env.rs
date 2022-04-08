@@ -30,26 +30,27 @@ impl PartialEq for Env {
 pub struct EnvData {
     pub dict: RwLock<HashMap<String, Expr>>,
     pub next_env: Option<Env>,
+    pub sym_number: Option<RwLock<u64>>,
 }
 
 impl EnvData {
-    fn new() -> EnvData {
-        EnvData { dict: RwLock::new(HashMap::new()), next_env: None }
+    fn new(sym_number: Option<RwLock<u64>>) -> EnvData {
+        EnvData { dict: RwLock::new(HashMap::new()), next_env: None, sym_number }
     }
 
-    fn containing(map: HashMap<String, Expr>) -> EnvData {
-        EnvData { dict: RwLock::new(map), next_env: None }
+    fn containing(map: HashMap<String, Expr>, sym_number: Option<RwLock<u64>>) -> EnvData {
+        EnvData { dict: RwLock::new(map), next_env: None, sym_number }
     }
 
     fn extending(map: HashMap<String, Expr>, env: Env) -> EnvData {
-        EnvData { dict: RwLock::new(map), next_env: Some(env) }
+        EnvData { dict: RwLock::new(map), next_env: Some(env), sym_number: None }
     }
 }
 
 impl Env {
     /// Creates a new empty Environment with no bindings to any values and no parent environment
-    pub fn new() -> Env {
-        Env { env_data: Arc::new(EnvData::new()) }
+    pub fn new(sym_number: Option<RwLock<u64>>) -> Env {
+        Env { env_data: Arc::new(EnvData::new(sym_number)) }
     }
 
     /// Creates a new Environment containing bindings from Strings to Expressions as contained in
@@ -61,14 +62,14 @@ impl Env {
     /// assert_eq!(env.get("binding").unwrap().read().unwrap(),
     ///            ExprData::Integer(152).to_expr());
     /// ```
-    pub fn containing(map: HashMap<String, Expr>) -> Env {
+    pub fn containing(map: HashMap<String, Expr>, sym_number: Option<RwLock<u64>>) -> Env {
         let locked_expr_map: HashMap<String, Expr> =
             map
                 .into_iter()
                 .map(|tuple| {
                     (tuple.0, tuple.1)
                 }).collect();
-        Env { env_data: Arc::new(EnvData::containing(locked_expr_map)) }
+        Env { env_data: Arc::new(EnvData::containing(locked_expr_map, sym_number)) }
     }
 
     /// Performs lookup of the given identifier name in this environment. If this environment does
@@ -190,6 +191,21 @@ impl Env {
             .map(|pair| (pair.0, pair.1));
         Env { env_data: Arc::new(EnvData::extending(binding_pairs.collect(), Env { env_data: self.env_data.clone() }))}
     }
+
+    pub fn get_sym_number(&self) -> Option<u64> {
+        let data_ptr = self.env_data.clone();
+        if let Some(lock) = &data_ptr.sym_number {
+            let mut number = lock.write().unwrap();
+            let result = number.clone();
+            *number += 1;
+
+            Some(result)
+        } else if let Some(parent) = data_ptr.next_env.clone() {
+            parent.get_sym_number()
+        } else {
+            None
+        }
+    }
 }
 
 #[cfg(test)]
@@ -198,14 +214,14 @@ mod env_tests {
 
     #[test]
     fn does_empty_env_get_none() {
-        let env = Env::new();
+        let env = Env::new(None);
         
         assert!(env.get("test").is_none());
     }
 
     #[test]
     fn does_set_on_empty_env_fail() {
-        let env = Env::new();
+        let env = Env::new(None);
 
         assert!(!env.set(String::from("test"), ExprData::nil().to_expr()));
     }
@@ -217,7 +233,7 @@ mod env_tests {
         let lambda_expr = ExprData::Lambda(
                                         Box::new(ExprData::List(vec![ExprData::Identifier(String::from("arg")).to_expr()].into_iter()).to_expr()),
                                         Box::new(ExprData::Integer(5).to_expr()),
-                                        Env::new()).to_expr();
+                                        Env::new(None)).to_expr();
         let list = ExprData::List(
                     vec![ExprData::Integer(5).to_expr(),
                          ExprData::Identifier(String::from("test")).to_expr()].into_iter()).to_expr();
@@ -236,7 +252,8 @@ mod env_tests {
                      (String::from("dotted"), dotted.clone()),
                      (String::from("nil"), nil.clone())]
                         .into_iter()
-                        .collect());
+                        .collect(),
+                        None);
 
         assert_eq!(env.get("integer").unwrap(), integer);
         assert_eq!(env.get("identifier").unwrap(), identifier);
@@ -248,7 +265,7 @@ mod env_tests {
 
     #[test]
     fn does_bind_single_expr() {
-        let empty_env = Env::new();
+        let empty_env = Env::new(None);
 
         let env = empty_env.extend(
                               ExprData::Identifier(String::from("test")).to_expr(),
@@ -262,7 +279,7 @@ mod env_tests {
 
     #[test]
     fn does_bind_from_list() {
-        let empty_env = Env::new();
+        let empty_env = Env::new(None);
         let env = 
             empty_env.extend(
                 Expr::form_list(vec![ExprData::Identifier(String::from("first")),
@@ -279,7 +296,7 @@ mod env_tests {
 
     #[test]
     fn does_bind_from_dotted_list() {
-        let empty_env = Env::new();
+        let empty_env = Env::new(None);
         let env =
             empty_env.extend(
                 ExprData::DottedList(vec![ExprData::Identifier(String::from("first")).to_expr()].into_iter(),
@@ -298,7 +315,7 @@ mod env_tests {
 
     #[test]
     fn does_set_update_env() {
-        let env = Env::containing(vec![(String::from("key"), ExprData::Integer(17).to_expr())].into_iter().collect());
+        let env = Env::containing(vec![(String::from("key"), ExprData::Integer(17).to_expr())].into_iter().collect(), None);
 
         assert_eq!(env.get("key").unwrap().expr_data,
                    ExprData::Integer(17));
@@ -311,7 +328,7 @@ mod env_tests {
 
     #[test]
     fn does_set_update_refs() {
-        let env = Env::containing(vec![(String::from("key"), ExprData::Integer(69).to_expr())].into_iter().collect());
+        let env = Env::containing(vec![(String::from("key"), ExprData::Integer(69).to_expr())].into_iter().collect(), None);
 
         let val_ref = env.get("key").unwrap();
 
@@ -328,7 +345,7 @@ mod env_tests {
     
     #[test]
     fn does_fail_nonexistent_set() {
-        let env = Env::containing(vec![(String::from("key"), ExprData::Integer(2).to_expr())].into_iter().collect());
+        let env = Env::containing(vec![(String::from("key"), ExprData::Integer(2).to_expr())].into_iter().collect(), None);
 
         assert!(!env.set(String::from("nonexistent"), ExprData::Integer(5).to_expr()));
     }

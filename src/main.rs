@@ -9,9 +9,12 @@ mod call_stack;
 mod default_env;
 mod macro_expander;
 
-use std::io::{
-    self,
-    Write,
+use std::{
+    io::{
+        self,
+        Write,
+    },
+    sync::RwLock,
 };
 
 use std::fs;
@@ -56,8 +59,9 @@ fn clap_args() -> ArgMatches {
 
 fn main() {
     let matches = clap_args();
-    let env = default_env::default_env();
-    let mut macro_env = Env::new();
+    let sym_number: RwLock<u64> = RwLock::new(0);
+    let env = default_env::default_env(sym_number);
+    let mut macro_env = Env::new(Some(RwLock::new(0)));
     let mut eval_pipeline = 
         |input_string: String| -> Result<Vec<Expr>, BootLispError> {
             parser::parse(lexer::lex(input_string)?)?.into_iter().map(

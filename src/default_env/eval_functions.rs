@@ -64,6 +64,32 @@ pub fn input(accumulator: &mut Option<Expr>, _frame: Option<StackFrame>, stack: 
     stack.pop_frame()
 }
 
+pub fn gensym(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
+    let env = frame.as_ref().unwrap().env.clone();
+    eval_arguments_and_apply(accumulator,
+                             frame,
+                             stack,
+                             |mut iter| {
+                                 let sym_prefix: String =
+                                     if let (Some(Expr { expr_data: ExprData::StringLiteral(prefix) }), None) = (iter.next(), iter.next()) {
+                                         prefix
+                                     } else if iter.next().is_none() {
+                                         "g".to_string()
+                                     } else {
+                                         panic!("Incorrect number of arguments provided to gensym")
+                                     };
+
+                                 let symbol: String =
+                                 if let Some(sym_number) = env.get_sym_number() {
+                                     format!("{}{}", sym_prefix, sym_number.to_string())
+                                 } else {
+                                     panic!("Could not retrieve valid sym number")
+                                 };
+
+                                 ExprData::Identifier(symbol).to_expr()
+                             })
+}
+
 pub fn eval(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
     let env = frame.as_ref().unwrap().env.clone();
     eval_arguments(accumulator,

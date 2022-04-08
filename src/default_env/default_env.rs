@@ -1,4 +1,6 @@
 
+use std::sync::RwLock;
+
 use super::arithmetic_functions::*;
 use super::bitwise_functions::*;
 use super::logical_functions::*;
@@ -17,7 +19,7 @@ use crate::parser::ExprData;
 use crate::env::Env;
 
 
-pub fn default_env() -> Env {
+pub fn default_env(sym_number: RwLock<u64>) -> Env {
     Env::containing(
         vec![
             ("+".to_string(), ExprData::Function("+".to_string(), add).to_expr()),
@@ -71,6 +73,7 @@ pub fn default_env() -> Env {
             ("begin".to_string(), ExprData::Function("begin".to_string(), begin).to_expr()),
             ("read".to_string(), ExprData::Function("read".to_string(), read).to_expr()),
             ("input".to_string(), ExprData::Function("input".to_string(), input).to_expr()),
+            ("gensym".to_string(), ExprData::Function("gensym".to_string(), gensym).to_expr()),
             ("eval".to_string(), ExprData::Function("eval".to_string(), eval).to_expr()),
             ("apply".to_string(), ExprData::Function("apply".to_string(), apply).to_expr()),
             ("exit".to_string(), ExprData::Function("exit".to_string(), exit).to_expr()),
@@ -83,6 +86,7 @@ pub fn default_env() -> Env {
             ("call-with-control".to_string(), ExprData::Function("call-with-control".to_string(), call_with_control).to_expr()),
 
             ("nil".to_string(), ExprData::nil().to_expr()),
-        ].into_iter().collect()
+        ].into_iter().collect(),
+        Some(sym_number)
     )
 }
