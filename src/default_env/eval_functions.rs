@@ -52,6 +52,18 @@ pub fn read(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &m
                              })
 }
 
+pub fn input(accumulator: &mut Option<Expr>, _frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> { 
+    let mut string = String::new();
+    std::io::stdin().read_line(&mut string).unwrap();
+    let mut result_expr =
+        parser::parse(
+            lexer::lex(string).expect("Failed lexing input string")
+        ).expect("Failed parsing file contents");
+
+    *accumulator = Some(result_expr.pop().unwrap());
+    stack.pop_frame()
+}
+
 pub fn eval(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mut CallStack) -> Option<StackFrame> {
     let env = frame.as_ref().unwrap().env.clone();
     eval_arguments(accumulator,

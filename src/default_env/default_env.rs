@@ -70,6 +70,7 @@ pub fn default_env() -> Env {
 
             ("begin".to_string(), ExprData::Function("begin".to_string(), begin).to_expr()),
             ("read".to_string(), ExprData::Function("read".to_string(), read).to_expr()),
+            ("input".to_string(), ExprData::Function("input".to_string(), input).to_expr()),
             ("eval".to_string(), ExprData::Function("eval".to_string(), eval).to_expr()),
             ("apply".to_string(), ExprData::Function("apply".to_string(), apply).to_expr()),
             ("exit".to_string(), ExprData::Function("exit".to_string(), exit).to_expr()),
