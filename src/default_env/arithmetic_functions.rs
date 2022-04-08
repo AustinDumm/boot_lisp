@@ -53,7 +53,7 @@ pub fn mul(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mu
                                      iter.map(|expr| -> i32 {
                                          match expr {
                                              Expr { expr_data: ExprData::Integer(value) } => value,
-                                             _ => panic!("Integer type must be used for subtraction"),
+                                             _ => panic!("Integer type must be used for multiplication"),
                                          }
                                      }).reduce(|acc, val| { acc * val }).unwrap()
                                  ).to_expr()
@@ -69,7 +69,7 @@ pub fn div(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &mu
                                      iter.map(|expr| -> i32 {
                                          match expr {
                                              Expr { expr_data: ExprData::Integer(value) } => value,
-                                             _ => panic!("Integer type must be used for subtraction"),
+                                             _ => panic!("Integer type must be used for division"),
                                          }
                                      }).reduce(|acc, val| { acc / val }).unwrap()
                                  ).to_expr()
@@ -85,7 +85,7 @@ pub fn modulo(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: 
                                      iter.map(|expr| -> i32 {
                                          match expr {
                                              Expr { expr_data: ExprData::Integer(value) } => value,
-                                             _ => panic!("Integer type must be used for subtraction"),
+                                             _ => panic!("Integer type must be used for modulo"),
                                          }
                                      }).reduce(|acc, val| { acc % val }).unwrap()
                                  ).to_expr()
