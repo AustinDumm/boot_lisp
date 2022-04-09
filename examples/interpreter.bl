@@ -1,0 +1,19 @@
+
+(define d-env (lambda (_) (void)))
+
+(define (eval-expr expr env)
+    (match expr
+        (('lambda (x) body)
+            (lambda (arg)
+                (eval-expr body (lambda (y)
+                                    (if (eq? x y)
+                                        arg
+                                        (env y))))))
+        ((operator operand)
+            ((eval-expr operator env)
+             (eval-expr operand env)))
+        (x
+            (if (identifier? x)
+                (env x)
+                x))))
+
