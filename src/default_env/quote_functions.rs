@@ -120,7 +120,8 @@ pub fn quasiquote(_accumulator: &mut Option<Expr>, frame: Option<StackFrame>, _s
             StackFrame { expr: Expr { expr_data: ExprData::List(mut iter) },
                          env,
                          rib: _,
-                         is_prompt: _, }) =>  {
+                         is_prompt: _,
+                         is_expanded: _, }) =>  {
             if let (Some(expr), None) = (iter.next(), iter.next()) {
                 let quasiquoted_expr = apply_quasiquote(expr, 0);
                 Some(StackFrame::new(quasiquoted_expr, env.clone(), vec![]))

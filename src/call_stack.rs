@@ -22,15 +22,16 @@ pub struct StackFrame {
     pub env: Env,
     pub rib: Vec<Expr>,
     pub is_prompt: bool,
+    pub is_expanded: bool,
 }
 
 impl StackFrame {
     pub fn new(expr: Expr, env: Env, rib: Vec<Expr>) -> StackFrame {
-        StackFrame { expr, env, rib, is_prompt: false }
+        StackFrame { expr, env, rib, is_prompt: false, is_expanded: false }
     }
 
     pub fn new_prompt_frame(expr: Expr, env: Env, rib: Vec<Expr>) -> StackFrame {
-        StackFrame { expr, env, rib, is_prompt: true }
+        StackFrame { expr, env, rib, is_prompt: true, is_expanded: false }
     }
 }
 
@@ -43,7 +44,7 @@ impl std::fmt::Debug for StackFrame {
 /// Holds a stack data structure of StackFrames used to sequence evaluation of nested expressions
 #[derive(Debug, Clone)]
 pub struct CallStack {
-    stack: Vec<StackFrame>
+    pub stack: Vec<StackFrame>
 }
 
 impl CallStack {

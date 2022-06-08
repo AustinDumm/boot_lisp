@@ -8,17 +8,17 @@ use crate::evaluator;
 
 use crate::env::Env;
 
-pub fn macro_expand(expr: Expr, evaluation_env: Env, macro_env: &mut Env) -> Option<Expr> {
+pub fn macro_expand(expr: Expr, evaluation_env: Env, macro_env: &mut Env) -> (bool, Expr) {
     let (searched_expr, definition_found) = collect_macro_definitions(expr, evaluation_env.clone(), macro_env);
 
     if definition_found {
-        Some(ExprData::Void.to_expr())
+        (false, ExprData::Void.to_expr())
     } else {
         expand_macro(searched_expr, evaluation_env.clone(), macro_env)
     }
 }
 
-fn expand_macro(expr: Expr, evaluation_env: Env, macro_env: &mut Env) -> Option<Expr> {
+fn expand_macro(expr: Expr, evaluation_env: Env, macro_env: &mut Env) -> (bool, Expr) {
     match expr.expr_data {
         ExprData::List(mut iter) => {
             match iter.next() {
@@ -29,15 +29,23 @@ fn expand_macro(expr: Expr, evaluation_env: Env, macro_env: &mut Env) -> Option<
                         macro_list.extend(iter.map(|expr| { expr.quoted() }));
                         let macro_application = ExprData::List(macro_list.into_iter()).to_expr();
                         let expanded_macro = evaluator::eval(macro_application, evaluation_env.clone(), macro_env).unwrap();
-                        Some(expanded_macro)
+                        (true, expanded_macro)
                     },
-                _ => {
-                    None
+                Some(expr) => {
+                    (false, ExprData::List(
+                        vec![expr]
+                            .into_iter()
+                            .chain(iter)
+                            .collect::<Vec<Expr>>()
+                            .into_iter()).to_expr())
+                },
+                None => {
+                    (false, ExprData::List(vec![].into_iter()).to_expr())
                 }
             }
         },
-        _ => {
-            None
+        expr => {
+            (false, expr.to_expr())
         }
     }
 }

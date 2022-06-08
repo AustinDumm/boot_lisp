@@ -50,6 +50,7 @@ pub fn eval(expr: Expr, env: Env, macro_env: &mut Env) -> EvalResult {
                     env: _,
                     rib: _,
                     is_prompt: _,
+                    is_expanded: _,
                 }
             ) |
             Some(
@@ -58,6 +59,7 @@ pub fn eval(expr: Expr, env: Env, macro_env: &mut Env) -> EvalResult {
                     env: _,
                     rib: _,
                     is_prompt: _,
+                    is_expanded: _,
                 }
             ) |
             Some(
@@ -66,6 +68,7 @@ pub fn eval(expr: Expr, env: Env, macro_env: &mut Env) -> EvalResult {
                     env: _, 
                     rib: _,
                     is_prompt: _,
+                    is_expanded: _,
                 }
             ) |
             Some(
@@ -74,6 +77,7 @@ pub fn eval(expr: Expr, env: Env, macro_env: &mut Env) -> EvalResult {
                     env: _,
                     rib: _,
                     is_prompt: _,
+                    is_expanded: _,
                 }
             ) |
             Some(
@@ -82,6 +86,7 @@ pub fn eval(expr: Expr, env: Env, macro_env: &mut Env) -> EvalResult {
                     env: _,
                     rib: _,
                     is_prompt: _,
+                    is_expanded: _,
                 }
             ) |
             Some(
@@ -90,6 +95,7 @@ pub fn eval(expr: Expr, env: Env, macro_env: &mut Env) -> EvalResult {
                     env: _,
                     rib: _,
                     is_prompt: _,
+                    is_expanded: _,
                 }
             ) |
             Some(
@@ -98,6 +104,7 @@ pub fn eval(expr: Expr, env: Env, macro_env: &mut Env) -> EvalResult {
                     env: _,
                     rib: _,
                     is_prompt: _,
+                    is_expanded: _,
                 }
             ) |
             Some(
@@ -106,6 +113,7 @@ pub fn eval(expr: Expr, env: Env, macro_env: &mut Env) -> EvalResult {
                     env: _,
                     rib: _,
                     is_prompt: _,
+                    is_expanded: _,
                 }
             ) => {
                 accumulator = Some(active_frame.unwrap().expr);
@@ -122,6 +130,7 @@ pub fn eval(expr: Expr, env: Env, macro_env: &mut Env) -> EvalResult {
                     env,
                     rib: _,
                     is_prompt: _,
+                    is_expanded: _,
                 }
             ) => {
                 if let Some(expr) = env.get(&name) {
@@ -143,6 +152,7 @@ pub fn eval(expr: Expr, env: Env, macro_env: &mut Env) -> EvalResult {
                     env,
                     rib,
                     is_prompt: _,
+                    is_expanded: _,
                 }
             ) => {
                 if end.expr_data == ExprData::List(vec![].into_iter()) {
@@ -164,6 +174,7 @@ pub fn eval(expr: Expr, env: Env, macro_env: &mut Env) -> EvalResult {
                     env,
                     mut rib,
                     is_prompt: _,
+                    is_expanded,
                 }
             ) => {
                 if let Some(acc_expr) = accumulator {
@@ -208,52 +219,51 @@ pub fn eval(expr: Expr, env: Env, macro_env: &mut Env) -> EvalResult {
                     //              Pop call stack and place frame as current active frame
                     //              Place the argument passed to the continuation in the accumulator
                     //
-                    if rib.len() == 0 {
+                    if !is_expanded {
                         // Handle macro expansion checks
-                        if let Some(expanded_expr) =
-                            macro_expander::macro_expand(ExprData::List(list.clone()).to_expr(), env.clone(), macro_env) {
-                            let new_frame = StackFrame::new(expanded_expr, env, rib);
-                            active_frame = Some(new_frame);
-                            continue
-                        }
-                    }
-
-                    if let Some(Expr { expr_data: ExprData::Function(_, fn_ptr) }) = rib.first() {
-                        let fn_ptr = fn_ptr.clone();
-                        active_frame = Some(
-                                StackFrame::new(ExprData::List(list).to_expr(),
-                                                env,
-                                                rib));
-                        active_frame =
-                            fn_ptr(&mut accumulator,
-                                   active_frame,
-                                   &mut call_stack);
-                    } else if let Some(next_expr) = list.next() {
-                        call_stack.push_frame(StackFrame::new(ExprData::List(list).to_expr(),
-                                                              env.clone(),
-                                                              rib));
-                        active_frame = Some(StackFrame::new(next_expr,
-                                                            env.clone(),
-                                                            vec![]));
+                        let (continue_expanding, expanded_expr) =
+                            macro_expander::macro_expand(ExprData::List(list).to_expr(), env.clone(), macro_env);
+                        let mut new_frame = StackFrame::new(expanded_expr, env, rib);
+                        new_frame.is_expanded = !continue_expanding;
+                        active_frame = Some(new_frame);
                     } else {
-                        let mut rib_iter = rib.into_iter();
-                        let expr = rib_iter.next();
-                        if let Some(Expr { expr_data: ExprData::Lambda(args, body, closure_env) }) = expr {
-                            let new_env = closure_env.extend((*args).clone(), 
-                                                             ExprData::List(rib_iter).to_expr());
-                            active_frame = Some(StackFrame::new(*body, new_env, vec![]));
-                        } else if let Some(Expr { expr_data: ExprData::Continuation(continuation_stack) }) = expr {
-                            if let (Some(argument), None) = (rib_iter.next(), rib_iter.next()) {
-                                call_stack.append(continuation_stack);
-                                active_frame = call_stack.pop_frame();
-                                accumulator = Some(argument);
+                        if let Some(Expr { expr_data: ExprData::Function(_, fn_ptr) }) = rib.first() {
+                            let fn_ptr = fn_ptr.clone();
+                            active_frame = Some(
+                                    StackFrame::new(ExprData::List(list).to_expr(),
+                                                    env,
+                                                    rib));
+                            active_frame =
+                                fn_ptr(&mut accumulator,
+                                    active_frame,
+                                    &mut call_stack);
+                        } else if let Some(next_expr) = list.next() {
+                            call_stack.push_frame(StackFrame::new(ExprData::List(list).to_expr(),
+                                                                env.clone(),
+                                                                rib));
+                            active_frame = Some(StackFrame::new(next_expr,
+                                                                env.clone(),
+                                                                vec![]));
+                        } else {
+                            let mut rib_iter = rib.into_iter();
+                            let expr = rib_iter.next();
+                            if let Some(Expr { expr_data: ExprData::Lambda(args, body, closure_env) }) = expr {
+                                let new_env = closure_env.extend((*args).clone(),
+                                                                ExprData::List(rib_iter).to_expr());
+                                active_frame = Some(StackFrame::new(*body, new_env, vec![]));
+                            } else if let Some(Expr { expr_data: ExprData::Continuation(continuation_stack) }) = expr {
+                                if let (Some(argument), None) = (rib_iter.next(), rib_iter.next()) {
+                                    call_stack.append(continuation_stack);
+                                    active_frame = call_stack.pop_frame();
+                                    accumulator = Some(argument);
+                                } else {
+                                    return Err(BootLispError::new(ErrorType::Eval,
+                                                                "Incorrect number of arguments provided to continuation"))
+                                }
                             } else {
                                 return Err(BootLispError::new(ErrorType::Eval,
-                                                              "Incorrect number of arguments provided to continuation"))
+                                                            &format!("Application attempted with non-applicable first element in list. Found: {:?}", expr)));
                             }
-                        } else {
-                            return Err(BootLispError::new(ErrorType::Eval,
-                                                          &format!("Application attempted with non-applicable first element in list. Found: {:?}", expr)));
                         }
                     }
                 }
