@@ -9,7 +9,7 @@
                             `((match-bind ,match-expr) . (,match-expr ,@bound-identifiers))))
                       ((nil? match-expr)
                         `((match-literal ,match-expr) . ,bound-identifiers))
-                      ((list? match-expr)
+                      ((and (list? match-expr) (not (empty? match-expr)))
                         (if (eq? 'quote (first match-expr))
                             `((match-literal ,(pick 1 match-expr)) . ,bound-identifiers)
                             (let* ((first-pair (expand-match (first match-expr) bound-identifiers))
@@ -40,7 +40,7 @@
                   (match-rest (pick 1 match-expr))
                   (first-sym (gensym))
                   (rest-sym (gensym)))
-                `(if (list? ,expr)
+                `(if (and (list? ,expr) (not (empty? ,expr)))
                      (let ((,first-sym (first ,expr))
                            (,rest-sym (rest ,expr)))
                          ,(build-match-binding first-sym match-first
