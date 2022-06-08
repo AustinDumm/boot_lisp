@@ -211,7 +211,7 @@ pub fn eval(expr: Expr, env: Env, macro_env: &mut Env) -> EvalResult {
                     if rib.len() == 0 {
                         // Handle macro expansion checks
                         if let Some(expanded_expr) =
-                            macro_expander::macro_expand(&ExprData::List(list.clone()).to_expr(), env.clone(), macro_env) {
+                            macro_expander::macro_expand(ExprData::List(list.clone()).to_expr(), env.clone(), macro_env) {
                             let new_frame = StackFrame::new(expanded_expr, env, rib);
                             active_frame = Some(new_frame);
                             continue
@@ -267,35 +267,39 @@ pub fn eval(expr: Expr, env: Env, macro_env: &mut Env) -> EvalResult {
 mod tests {
     use super::*;
     use crate::default_env;
+    use std::sync::RwLock;
 
     #[test]
     fn evaluates_single_integer() {
+        let mut empty_env = Env::new(None);
         assert_eq!(
-            eval(ExprData::Integer(52).to_expr(), Env::new()).expect("Failed to evaluate"),
+            eval(ExprData::Integer(52).to_expr(), Env::new(None), &mut empty_env).expect("Failed to evaluate"),
             ExprData::Integer(52).to_expr()
         );
     }
 
     #[test]
     fn evaluates_single_ident_lookup() {
+        let mut empty_env = Env::new(None);
         assert_eq!(
             eval(
                 ExprData::ident_from("test").to_expr(),
                 Env::containing(vec![
                     (String::from("test"), ExprData::Integer(645).to_expr())
-                ].into_iter().collect())).expect("Failed to evaluate"),
+                ].into_iter().collect(), None), &mut empty_env).expect("Failed to evaluate"),
             ExprData::Integer(645).to_expr());
     }
 
     #[test]
     fn evaluates_single_lambda() {
-        let env = Env::new();
+        let mut empty_env = Env::new(None);
+        let env = Env::new(None);
         assert_eq!(
             eval(
                 ExprData::Lambda(Box::new(ExprData::List(vec![ExprData::Identifier(String::from("test")).to_expr()].into_iter()).to_expr()),
                                  Box::new(ExprData::Integer(521).to_expr()),
                                  env.clone()).to_expr(),
-                Env::new()).expect("Failed to evaluate"),
+                Env::new(None), &mut empty_env).expect("Failed to evaluate"),
                 ExprData::Lambda(Box::new(ExprData::List(vec![ExprData::Identifier(String::from("test")).to_expr()].into_iter()).to_expr()),
                                  Box::new(ExprData::Integer(521).to_expr()),
                                  env.clone()).to_expr()
@@ -304,44 +308,51 @@ mod tests {
 
     #[test]
     fn fails_to_evaluate_dotted_list() {
+        let mut empty_env = Env::new(None);
         assert_eq!(eval(ExprData::DottedList(vec![ExprData::Integer(2421).to_expr()].into_iter(),
-                                             Box::new(ExprData::Identifier(String::from("testing")).to_expr())).to_expr(), Env::new()).unwrap_err(),
+                                             Box::new(ExprData::Identifier(String::from("testing")).to_expr())).to_expr(), Env::new(None), &mut empty_env).unwrap_err(),
                    BootLispError::new(ErrorType::Eval,
                                       "Cannot evaluate dotted list"));
     }
 
     #[test]
     fn evaluates_identity_application() {
+        let mut empty_env = Env::new(None);
         assert_eq!(
             eval(ExprData::List(
                     vec![
                         ExprData::Lambda(Box::new(ExprData::List(vec![ExprData::Identifier(String::from("x")).to_expr()].into_iter()).to_expr()),
                                          Box::new(ExprData::Identifier(String::from("x")).to_expr()),
-                                         Env::new()).to_expr(),
+                                         Env::new(None)).to_expr(),
                         ExprData::Integer(823).to_expr()].into_iter()).to_expr(),
-                 Env::new()).expect("Failed to evaluate"),
+                 Env::new(None), &mut empty_env).expect("Failed to evaluate"),
             ExprData::Integer(823).to_expr()
         );
     }
 
     #[test]
     fn evaluates_quoted_expr() {
+        let sym_number: RwLock<u64> = RwLock::new(0);
+        let mut empty_env = Env::new(None);
         assert_eq!(
             eval(Expr::form_list(vec![ExprData::Identifier("quote".to_string()),
                                       ExprData::List(vec![ExprData::Integer(5).to_expr(), ExprData::Integer(8).to_expr()].into_iter())]),
-                 default_env::default_env()).expect("Failed to evaluate"),
+                 default_env::default_env(sym_number), &mut empty_env).expect("Failed to evaluate"),
             Expr::form_list(vec![ExprData::Integer(5), ExprData::Integer(8)]));
     }
 
     #[test]
     fn evaluates_addition_function() {
     use crate::default_env;
+        let sym_number:  RwLock<u64> = RwLock::new(0);
+        let mut empty_env = Env::new(None);
         assert_eq!(
             eval(Expr::form_list(vec![ExprData::ident_from("+"),
                                       ExprData::Integer(1),
                                       ExprData::Integer(2),
                                       ExprData::Integer(3)]),
-                 default_env::default_env()).expect("Failed to evaluate"),
+                 default_env::default_env(sym_number),
+                 &mut empty_env).expect("Failed to evaluate"),
             ExprData::Integer(6).to_expr());
     }
 }

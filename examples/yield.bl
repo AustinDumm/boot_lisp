@@ -1,3 +1,1 @@
-(define (call-with-shift f) (call-with-control (lambda (k) (f (lambda (arg) (prompt (k arg)))))))
 (define (yield x) (call-with-shift (lambda (k) (cons x (k (void))))))
-
