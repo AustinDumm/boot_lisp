@@ -65,7 +65,12 @@ pub fn rest(accumulator: &mut Option<Expr>, frame: Option<StackFrame>, stack: &m
                                          },
                                          ExprData::DottedList(mut iter, rest) => {
                                              iter.next();
-                                             ExprData::DottedList(iter, rest).to_expr()
+                                             let mut peekable = iter.clone().peekable();
+                                             if peekable.peek().is_none() {
+                                                 *rest
+                                             } else {
+                                                ExprData::DottedList(iter, rest).to_expr()
+                                             }
                                          }
                                          _ => panic!("'rest' must be given a list")
                                      }
